@@ -1,9 +1,9 @@
 #include <Wire.h>
 #define MPU9250_ADDR 0x68
-#define AK8963_ADDR  0x0C
+//#define AK8963_ADDR  0x0C
 // Buffers
 int16_t ax, ay, az, gx, gy, gz;
-int16_t mx, my, mz;
+//int16_t mx, my, mz;
 
 bool mpu_write(uint8_t addr, uint8_t reg, uint8_t val) {
 	Wire.beginTransmission(addr);
@@ -25,7 +25,7 @@ bool mpu_read_bytes(uint8_t addr, uint8_t reg, uint8_t count, uint8_t *buf) {
 	return true;
 }
 
-
+/*
 bool initMagBypass() {  // enable I2C bypass on MPU9250
   if (!mpu_write(MPU9250_ADDR, 0x37, 0x02)){
     Serial.println("enable I2C bypass on MPU9250");
@@ -85,8 +85,9 @@ bool initMagBypass() {  // enable I2C bypass on MPU9250
 
   return true;
 }
+*/
 
-
+/*
 // This config programs MPU9250 I2C master to read AK8963 registers 0x03..0x09 into EXT_SENS_DATA registers.bool 
 bool initMagViaMPU() {  
   // Reset and basic MPU config omitted — assume MPU is awake and accessible at MPU_ADDR.
@@ -122,6 +123,7 @@ bool initMagViaMPU() {
   delay(10);  
   return true;
 }
+*/
 
 bool mpu9250_init() {
 	Wire.begin(/*sda=*/7, /*scl=*/9); // use GPIO7 for SDA
@@ -138,7 +140,7 @@ bool mpu9250_init() {
 	mpu_write(MPU9250_ADDR, 0x1A, 0x03); // DLPF ~44Hz (tune as needed)
 
   //initMagBypass();
-  initMagViaMPU();
+  //initMagViaMPU();
 /*
 	// Enable I2C bypass to talk to AK8963 directly
 	if (!mpu_write(MPU9250_ADDR, 0x37, 0x02))
@@ -170,7 +172,7 @@ bool read_accel_gyro() {
 	gz = (int16_t)((buf[12] << 8) | buf[13]);
 	return true;
 }
-
+/*
 // To read magnetometer data when using MPU master mode:
 bool readMagViaMPU() {  
   uint8_t buf[7];  
@@ -204,4 +206,4 @@ bool read_mag_via_bypass() {
 	mz = (int16_t)((buf[5] << 8) | buf[4]);
 	return true;
 }
-
+*/

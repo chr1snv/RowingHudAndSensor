@@ -1,6 +1,7 @@
 
 #include <WiFi.h>
 //#include <WiFiUdp.h>
+//#include "mbedtls/aes.h"
 #include <esp_now.h>
 
 #pragma pack(push,1)
@@ -16,10 +17,15 @@ pkt_t sendPkt;
 pkt_t rcvPkt;
 
 
+
+
 const unsigned long sampleIntervalUs = 10000; // 100 Hz -> 10,000 us (change to 1000 for 1kHz)
 
+
+//#define SYNC_PORT 6006 //use one port for sync and data packets (only one wifi channel radio in esp32 c3 and is half duplex anyway)
+
 // Device identification (unique per node)
-const uint8_t device_id = 1; // change for each sensor board (1..18)
+const uint8_t device_id = 0; // change for each sensor board (1..18)
 
 //for synchronization of broadcast
 const uint8_t NUM_DEVICES = 18;
@@ -27,10 +33,11 @@ volatile uint32_t sync_epoch = 0;
 volatile uint32_t sync_interval = 0;
 bool have_sync = false;
 
+
 volatile unsigned long nextTxTime = 999999999999;
 
 
-uint8_t broadcastAddress[] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+uint8_t broadcastAddress[] = { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF };
 const uint8_t CHANNEL = 1; // choose channel and use same on all devices
 
 #define ESP_NOW_BRDCAST_PKTLEN 128
@@ -51,7 +58,6 @@ static uint8_t rand8(uint16_t offset){
 
 uint8_t sendBuff[ESP_NOW_BRDCAST_PKTLEN];
 esp_err_t sendEncPacket( const uint8_t * data, size_t len ){
-  //Serial.print("sending len "); Serial.println( len );
   sendBuff[ESP_NOW_BRDCAST_PKTLEN-2] = txCtr & 0x0F;
   sendBuff[ESP_NOW_BRDCAST_PKTLEN-1] = (txCtr & 0xF0) >> 4;
   for( int i = 0; i < ESP_NOW_BRDCAST_PKTLEN-2; ++i ){
@@ -60,8 +66,6 @@ esp_err_t sendEncPacket( const uint8_t * data, size_t len ){
       c = data[i];
     sendBuff[i] = c ^ (rand8(txCtr+i) + txKey[i]);
   }
-  //Serial.print("sending len "); Serial.print( len ); Serial.print(" ctr "); Serial.print(txCtr);
-  //Serial.print(" data "); Serial.println( (char *)data );
   txCtr += 1;
   return esp_now_send(broadcastAddress, sendBuff, ESP_NOW_BRDCAST_PKTLEN);//(uint8_t *) &myData, sizeof(myData));
   
@@ -73,12 +77,14 @@ bool rcvDecryptPacket( const uint8_t * data, size_t len ){
     return false;
   uint8_t rxCtr = data[ESP_NOW_BRDCAST_PKTLEN-2] & 0x0F;
   rxCtr |= (data[ESP_NOW_BRDCAST_PKTLEN-1] & 0x0F) << 4;
-  //Serial.println( rxCtr );
+  
 
   for( int i = 0; i < ESP_NOW_BRDCAST_PKTLEN-2; ++i ){
     uint8_t c = data[i];
     recvData[i] = c ^ (rand8(rxCtr+i) + txKey[i]);
   }
+  recvData[ESP_NOW_BRDCAST_PKTLEN-1] = 0;
+  //Serial.print("ctr "); Serial.print( rxCtr ); Serial.print(" data "); Serial.println(recvData);
   return true;
 }
 
@@ -92,19 +98,17 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status){
 void onDataRecv(const esp_now_recv_info *macAndInfo, const uint8_t *data, int len){  
   // handle received data
   //memcpy( recvData, data, len);
-  if( rcvDecryptPacket( data, len ) ){
-    //Serial.print("data Recvd: "); Serial.print(recvData); Serial.print(" len "); Serial.println( len );
-    if ( strncmp(recvData, "sync", 4) == 0 ){
-      have_sync = true;
-      nextTxTime = millis() + ( (sampleIntervalUs / NUM_DEVICES) * (1 + device_id) );
-      //Serial.println("sync rcvd");
-    }
-    //else{
-    //  memcpy(&rcvPkt, recvData, sizeof(rcvPkt));
-    //}
+  rcvDecryptPacket( data, len );
+  if ( strncmp(recvData, "sync", 4) == 0 ){
+    have_sync = true;
+    nextTxTime = millis() + ( (sampleIntervalUs / NUM_DEVICES) * (1 + device_id) );
+    //Serial.println("sync rcvd");
+  }else{
+    //Serial.print("recvd: "); Serial.println( recvData );
+    memcpy(&rcvPkt, recvData, sizeof(rcvPkt));
   }
-
 }
+
 
 
 // Wi-Fi placeholders
@@ -134,7 +138,7 @@ void wifiConnect(){
   esp_now_peer_info_t peerInfo = {};
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
   peerInfo.channel = CHANNEL;
-  peerInfo.encrypt = false;
+  peerInfo.encrypt = false; //can't use encrypt with broadcast peer
   if( esp_now_add_peer(&peerInfo) != ESP_OK ){
     Serial.println("Failed to add peer");
     return;
@@ -156,8 +160,6 @@ void wifiConnect(){
   Serial.print("Udp listener started on port "); Serial.println( UDP_PORT );
   */
 }
-
-//#define SYNC_PORT 6006 //use one port for sync and data packets (only one wifi channel radio in esp32 c3 and is half duplex anyway)
 
 
 
