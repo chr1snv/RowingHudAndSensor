@@ -1,38 +1,92 @@
 #include <U8g2lib.h>
 #include <Wire.h>
 
+int16_t pmx,pmy,pmz; //previous loop magnetic values
+
+uint8_t lastTemperature;
+bool lightLedValue = false;
+
+bool hasMagSensor;
+bool hasMicSensor;
+bool hasLight_Out;
+bool hasSpeaker_Out;
+void genFeatureMask( uint8_t & featureMask, bool hasMagSensor, bool hasMicSensor, bool hasLight, bool hasSpeaker ){
+	featureMask = 0;
+	if( hasMagSensor )
+		featureMask |= 0x01;
+	featureMask <<= 1;
+	if( hasMicSensor )
+		featureMask |= 0x01;
+	featureMask <<= 1;
+	if( hasLight )
+		featureMask |= 0x01;
+	featureMask <<= 1;
+	if( hasSpeaker )
+		featureMask |= 0x01;
+}
+
+//#define LightLEDPin  4
+#define redLEDPin    8
+//void initLight(){
+//	Serial.print(" init light ");
+//	pinMode(LightLEDPin, OUTPUT);
+//	digitalWrite(redLEDPin, LOW);
+//}
+
+#include "GlobalDefinesAndFunctions.h"
+
+#include "morseCode.h"
+
+#include "wifiConnection.h"
 
 #include "multipleDeviceTimeslotSync.h"
 
+#include "cloudConnection.h"
+#include "APWebConfig.h"
+
+char lastCsiInfoStr[CSI_INF_STR_LEN];
 
 // Sensor on the same TwoWire instance as oled (only 1 i2c interface on esp32-c3)
 #include <Adafruit_QMC5883P.h>
 
 Adafruit_QMC5883P qmc = Adafruit_QMC5883P();
 
-
+//init oled display
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0/*MIRROR*/, U8X8_PIN_NONE, 6, 5);
 int xOffset = 28; //x 28px start offset + (3 * 5 + 3) 18 chars wide * 3px (72px wide)
 int yOffset = 29; //y 29px start offset + (6        )  6 lines high * 7px (42px high)
 
 uint idleTimer;
 
-
+uint8_t screenNum = 0;
+#define MIN_SCREEN_NUM 0
+#define MAX_SCREEN_NUM 3
 
 void setup(void) {
+  esp_wifi_set_ps(WIFI_PS_NONE);
+  
+  esp_log_level_set("esp-tls", ESP_LOG_DEBUG);
+  esp_log_level_set("esp-tls-mbedtls", ESP_LOG_DEBUG);
+  esp_log_level_set("esp_websocket_client", ESP_LOG_DEBUG);
+  esp_log_level_set("mbedtls", ESP_LOG_DEBUG);
+
   Serial.begin(115200);
   //delay(5000);
   for(int i = 0; i < 10; ++i){
     Serial.println("Serial output to syncronize");
   }
 
+  Serial.print(" init light ");
+	pinMode(redLEDPin, OUTPUT);
+	digitalWrite(redLEDPin, LOW);
+
   pinMode(5, INPUT_PULLUP); //software i2c bus pullups
   pinMode(6, INPUT_PULLUP);
   Wire.begin(5, 6, 400000);
   //scan and print found devices
-  for (uint8_t a=1;a<127;a++){  
-    Wire.beginTransmission(a);  
-    if (Wire.endTransmission()==0) 
+  for (uint8_t a=1;a<127;a++){
+    Wire.beginTransmission(a);
+    if (Wire.endTransmission()==0)
     Serial.printf("I2C device 0x%02X\n", a);
   }
   delay(10);
@@ -57,7 +111,27 @@ void setup(void) {
   u8g2.setFont(u8g2_font_micro_tr); // 5-pixel high font
   idleTimer = 0;
 
-  wifiConnect();
+/*
+  //check how many stored networks and servers there are
+  fillSettingsString( lastCsiInfoStr );
+
+  if (numStoredNetworks < 1 || numStoredSvrs < 1)
+    startAPWebConfig();
+  else
+    wifiConnect();
+*/
+
+  //try to join saved network (phone wifi hotspot ap)
+  Serial.print(" init wifi ");
+	//esp_wifi_init();
+	joinedWifiChannel = connectWiFi(wifi_scanNetworks());
+
+  InitEspNow(joinedWifiChannel);
+
+  if(!joinedWifiNetwork){ //if couldn't join, start local ap and config webserver
+    screenNum = 3;
+    startAPWebConfig();
+  }
 }
 
 /*
@@ -83,22 +157,23 @@ GESTURE lastGesture;
 
 
 unsigned long lastMicros = 0;
+unsigned long lastSyncRequestMicros = 0;
+unsigned long lastMorseUpdateMicros = 0;
+unsigned long lastColudStatusSendMicros = 0;
 
-int16_t pmx,pmy,pmz; //previous loop magnetic values
+
 
 #define LINESPACING 7
-
-uint8_t screenNum = 0;
-#define MIN_SCREEN_NUM 0
-#define MAX_SCREEN_NUM 2
 
 char outputStrBuff[64];
 void loop(void) {
 
+
   unsigned long now = micros();
 
+
   if(device_id == 0){
-    if ((now - lastMicros) > sampleIntervalUs){ //sync pulse / start update transmit of all devices
+    if ( now - lastSyncRequestMicros > sampleIntervalUs ){ //sync pulse / start update transmit of all devices
       //Serial.println("Sending sync");
       //Udp.beginMulticast(IPAddress a, uint16_t p);
       esp_err_t result = sendEncPacket( (uint8_t *) "sync", 4);
@@ -108,7 +183,7 @@ void loop(void) {
       else {
         Serial.println("Error sending sync");
       }
-      lastMicros = now;
+      lastSyncRequestMicros = now;
     }
   }
 
@@ -199,8 +274,8 @@ void loop(void) {
       sprintf(outputStrBuff, "%4i %4i %4i %4i", delta, mxD, myD, mzD);
       u8g2.drawStr(xOffset+0, yOffset +2*LINESPACING, outputStrBuff);
 
-    }else{
-      
+    }else if(screenNum == 2){
+
       //recieved data from oar sensor
       u8g2.drawStr(xOffset + 2, yOffset + 0*LINESPACING, "OAR SENSOR");
       //uint8_t device_id;
@@ -208,20 +283,45 @@ void loop(void) {
       //int16_t ax, ay, az;
       //int16_t gx, gy, gz;
       //int16_t mx, my, mz;
-      sprintf(outputStrBuff, "%4i %4i %4i %4i %4i", 
-                rcvPkt.device_id, 
+      sprintf(outputStrBuff, "%4i %4i %4i %4i %4i",
+                rcvPkt.device_id,
                 (unsigned)(rcvPkt.t & 0xFFFF) & 0x0FFF); // low 12 bits -> fits 4 chars (0-4095)
       u8g2.drawStr(xOffset+0, yOffset +1*LINESPACING, outputStrBuff);
-      sprintf(outputStrBuff, "%4i %4i %4i", 
+      sprintf(outputStrBuff, "%4i %4i %4i",
                 rcvPkt.ax, rcvPkt.ay, rcvPkt.az);
       u8g2.drawStr(xOffset+0, yOffset +2*LINESPACING, outputStrBuff);
       sprintf(outputStrBuff, "%4i %4i %4i", rcvPkt.gx, rcvPkt.gy, rcvPkt.gz );
       u8g2.drawStr(xOffset+0, yOffset +3*LINESPACING, outputStrBuff);
       sprintf(outputStrBuff, "%4i %4i %4i", rcvPkt.mx, rcvPkt.my, rcvPkt.mz );
       u8g2.drawStr(xOffset+0, yOffset +4*LINESPACING, outputStrBuff);
+    }else if(screenNum == 3){
+      if(!joinedWifiNetwork){
+        u8g2.drawStr(xOffset + 2, yOffset + 0*LINESPACING, "Config over wifi");
+        u8g2.drawStr(xOffset + 2, yOffset + 2*LINESPACING, APssid);
+        u8g2.drawStr(xOffset + 2, yOffset + 3*LINESPACING, APpassword);
+        u8g2.drawStr(xOffset + 2, yOffset + 4*LINESPACING, "192.168.4.1");
+
+      }else{
+        u8g2.drawStr(xOffset + 2, yOffset + 0*LINESPACING, "Connected to");
+        u8g2.drawStr(xOffset + 2, yOffset + 2*LINESPACING, APssid);
+        sprintf(outputStrBuff, "%4i", joinedWifiChannel);
+        u8g2.drawStr(xOffset + 2, yOffset + 3*LINESPACING, outputStrBuff);
+      }
     }
 
     u8g2.sendBuffer();
   }
 
+  if( now - lastMorseUpdateMicros > morseOutputIntervalMicros ){
+    morseOutputLedUpdate( redLEDPin, true );
+    lastMorseUpdateMicros = now;
+  }
+
+  if( now - lastColudStatusSendMicros > cloudSendStatusIntervalMillis && joinedWifiNetwork ){
+
+    PostAndFetchDataFromCloudServer(DEV_STATUS);
+    lastColudStatusSendMicros = now;
+  }
+
+  lastMicros = now;
 }

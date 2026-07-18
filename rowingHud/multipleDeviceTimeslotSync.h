@@ -1,5 +1,8 @@
 
 #include <WiFi.h>
+#include "esp_wifi.h"
+int staRssi;
+
 //#include <WiFiUdp.h>
 //#include "mbedtls/aes.h"
 #include <esp_now.h>
@@ -38,7 +41,7 @@ volatile unsigned long nextTxTime = 999999999999;
 
 
 uint8_t broadcastAddress[] = { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF };
-const uint8_t CHANNEL = 1; // choose channel and use same on all devices
+//const uint8_t CHANNEL = 1; // choose channel and use same on all devices
 
 #define ESP_NOW_BRDCAST_PKTLEN 128
 
@@ -55,9 +58,12 @@ static uint8_t rand8(uint16_t offset){
   x ^= x >> 16;
   return (uint8_t)(x & 0xFF);
 }
+bool espNowReady = false;
 
 uint8_t sendBuff[ESP_NOW_BRDCAST_PKTLEN];
 esp_err_t sendEncPacket( const uint8_t * data, size_t len ){
+  if( !espNowReady )
+    return 0;
   sendBuff[ESP_NOW_BRDCAST_PKTLEN-2] = txCtr & 0x0F;
   sendBuff[ESP_NOW_BRDCAST_PKTLEN-1] = (txCtr & 0xF0) >> 4;
   for( int i = 0; i < ESP_NOW_BRDCAST_PKTLEN-2; ++i ){
@@ -120,6 +126,8 @@ const uint16_t UDP_PORT = 5005;
 //WiFiUDP Udp;
 
 
+#define MAX_STORED_NETWORKS 10
+/*
 void wifiConnect(){
   WiFi.mode(WIFI_STA); // STA mode is typical for ESP-NOW
   WiFi.setChannel(CHANNEL); // one radio, set channel for both wifi and esp32-now
@@ -127,24 +135,8 @@ void wifiConnect(){
     delay(100);
   }
   Serial.println(WiFi.macAddress());
-  esp_now_init();
-  while (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW");
-  }
-  Serial.println("esp now setup");
-  esp_now_register_send_cb(onDataSent);
-  esp_now_register_recv_cb(onDataRecv);
-  // register broadcast peer
-  esp_now_peer_info_t peerInfo = {};
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-  peerInfo.channel = CHANNEL;
-  peerInfo.encrypt = false; //can't use encrypt with broadcast peer
-  if( esp_now_add_peer(&peerInfo) != ESP_OK ){
-    Serial.println("Failed to add peer");
-    return;
-  }
-  Serial.println("esp now peer added");
-  /*
+
+
   WiFi.begin(WIFI_SSID, WIFI_PASS); //udp brodcast (255.255.255.255) or multicast is not radio level, the ap has to re transmit it
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED &&
@@ -156,9 +148,30 @@ void wifiConnect(){
   
   Serial.print("Connected to to wifi "); Serial.println(WIFI_SSID);
   // start UDP
-  Udp.begin(UDP_PORT);
-  Serial.print("Udp listener started on port "); Serial.println( UDP_PORT );
-  */
+  //Udp.begin(UDP_PORT);
+  //Serial.print("Udp listener started on port "); Serial.println( UDP_PORT );
+*/
+
+bool InitEspNow(uint8_t channel){
+  esp_now_init();
+  while (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+  }
+  Serial.println("esp now setup");
+  esp_now_register_send_cb(onDataSent);
+  esp_now_register_recv_cb(onDataRecv);
+  // register broadcast peer
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = channel;
+  peerInfo.encrypt = false; //can't use encrypt with broadcast peer
+  if( esp_now_add_peer(&peerInfo) != ESP_OK ){
+    Serial.println("Failed to add peer");
+    return false;
+  }
+  Serial.println("esp now peer added");
+  espNowReady = true;
+  return true;
 }
 
 
