@@ -1,54 +1,33 @@
 #include <U8g2lib.h>
 #include <Wire.h>
 
+int16_t mx,my,mz;
 int16_t pmx,pmy,pmz; //previous loop magnetic values
 
-uint8_t lastTemperature;
-bool lightLedValue = false;
 
-bool hasMagSensor;
-bool hasMicSensor;
-bool hasLight_Out;
-bool hasSpeaker_Out;
-void genFeatureMask( uint8_t & featureMask, bool hasMagSensor, bool hasMicSensor, bool hasLight, bool hasSpeaker ){
-	featureMask = 0;
-	if( hasMagSensor )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-	if( hasMicSensor )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-	if( hasLight )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-	if( hasSpeaker )
-		featureMask |= 0x01;
-}
 
+#define BUTTON_Boot 9
 //#define LightLEDPin  4
-#define redLEDPin    8
+#define builtInLEDPin    8
 //void initLight(){
 //	Serial.print(" init light ");
 //	pinMode(LightLEDPin, OUTPUT);
 //	digitalWrite(redLEDPin, LOW);
 //}
 
-#include "GlobalDefinesAndFunctions.h"
-
-#include "morseCode.h"
-
-#include "wifiConnection.h"
-
-#include "multipleDeviceTimeslotSync.h"
-
-#include "cloudConnection.h"
-#include "APWebConfig.h"
+#include <GlobalDefinesAndFunctions.h>
+#include <storedConfig.h>
+#include <morseCode.h>
+#include <wifiConnection.h>
+#include <multipleDeviceTimeslotSync.h>
+#include <cloudConnection.h>
+#include <APWebConfig.h>
 
 char lastCsiInfoStr[CSI_INF_STR_LEN];
 
 // Sensor on the same TwoWire instance as oled (only 1 i2c interface on esp32-c3)
+#include <MPU9250Faster.h> //accelerometer and gyro reading
 #include <Adafruit_QMC5883P.h>
-
 Adafruit_QMC5883P qmc = Adafruit_QMC5883P();
 
 //init oled display
@@ -62,23 +41,32 @@ uint8_t screenNum = 0;
 #define MIN_SCREEN_NUM 0
 #define MAX_SCREEN_NUM 3
 
-void setup(void) {
-  esp_wifi_set_ps(WIFI_PS_NONE);
-  
-  esp_log_level_set("esp-tls", ESP_LOG_DEBUG);
-  esp_log_level_set("esp-tls-mbedtls", ESP_LOG_DEBUG);
-  esp_log_level_set("esp_websocket_client", ESP_LOG_DEBUG);
-  esp_log_level_set("mbedtls", ESP_LOG_DEBUG);
+volatile bool bootPressed = false;
+void onBootFall(){
+  bootPressed = true;
+}
 
+void setup(void) {
+  
   Serial.begin(115200);
   //delay(5000);
   for(int i = 0; i < 10; ++i){
     Serial.println("Serial output to syncronize");
   }
 
+  readPreferncesStoredConfig();
+
+  //setup gpios
+
+  //inputs
+  pinMode(BUTTON_Boot, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_Boot), onBootFall, FALLING);
+
+
+  //outputs
   Serial.print(" init light ");
-	pinMode(redLEDPin, OUTPUT);
-	digitalWrite(redLEDPin, LOW);
+	pinMode(builtInLEDPin, OUTPUT);
+	digitalWrite(builtInLEDPin, HIGH); //inverted output
 
   pinMode(5, INPUT_PULLUP); //software i2c bus pullups
   pinMode(6, INPUT_PULLUP);
@@ -91,6 +79,12 @@ void setup(void) {
   }
   delay(10);
 
+
+  if (!mpu9250_init()) { //!mpu9250_begin()){ //
+		Serial.println("MPU9250 init failed");
+		//while (1) delay(1000);
+	}
+	Serial.println("MPU9250 init OK");
   Serial.println(" init magSensor ");
   // IMPORTANT: Tell the library to use your chip's specific address
   if (!qmc.begin()) { 
@@ -111,15 +105,6 @@ void setup(void) {
   u8g2.setFont(u8g2_font_micro_tr); // 5-pixel high font
   idleTimer = 0;
 
-/*
-  //check how many stored networks and servers there are
-  fillSettingsString( lastCsiInfoStr );
-
-  if (numStoredNetworks < 1 || numStoredSvrs < 1)
-    startAPWebConfig();
-  else
-    wifiConnect();
-*/
 
   //try to join saved network (phone wifi hotspot ap)
   Serial.print(" init wifi ");
@@ -154,23 +139,42 @@ typedef enum {
   Y_LEFT
 } GESTURE;
 GESTURE lastGesture;
+GESTURE lastLastGesture;
 
 
 unsigned long lastMicros = 0;
 unsigned long lastSyncRequestMicros = 0;
 unsigned long lastMorseUpdateMicros = 0;
-unsigned long lastColudStatusSendMicros = 0;
+unsigned long lastCloudStatusSendMicros = 0;
 
 
 
 #define LINESPACING 7
 
+uint8_t mainLoopDelayMillis = 10;
+
 char outputStrBuff[64];
 void loop(void) {
 
-
   unsigned long now = micros();
 
+
+
+  //////
+  //periodic tasks/////
+  //////
+
+
+  //if( now - lastMorseUpdateMicros > morseOutputIntervalMicros ){
+  //  morseOutputLedUpdate( builtInLEDPin, true );
+  //  lastMorseUpdateMicros = now;
+  //}
+
+  if( now - lastCloudStatusSendMicros > cloudSendStatusIntervalMillis && joinedWifiNetwork ){
+
+    PostAndFetchDataFromCloudServer(DEV_STATUS);
+    lastCloudStatusSendMicros = now;
+  }
 
   if(device_id == 0){
     if ( now - lastSyncRequestMicros > sampleIntervalUs ){ //sync pulse / start update transmit of all devices
@@ -187,8 +191,9 @@ void loop(void) {
     }
   }
 
+
+  read_accel_gyro();
   //qmc.read();
-  int16_t mx,my,mz;
   qmc.getRawMagnetic(&mx,&my,&mz);
 
 
@@ -295,6 +300,12 @@ void loop(void) {
       sprintf(outputStrBuff, "%4i %4i %4i", rcvPkt.mx, rcvPkt.my, rcvPkt.mz );
       u8g2.drawStr(xOffset+0, yOffset +4*LINESPACING, outputStrBuff);
     }else if(screenNum == 3){
+
+      if(lastGesture == P_UP && lastLastGesture != lastGesture || bootPressed){
+        startAPWebConfig();
+        bootPressed = false;
+      }
+
       if(!joinedWifiNetwork){
         u8g2.drawStr(xOffset + 2, yOffset + 0*LINESPACING, "Config over wifi");
         u8g2.drawStr(xOffset + 2, yOffset + 2*LINESPACING, APssid);
@@ -302,9 +313,11 @@ void loop(void) {
         u8g2.drawStr(xOffset + 2, yOffset + 4*LINESPACING, "192.168.4.1");
 
       }else{
-        u8g2.drawStr(xOffset + 2, yOffset + 0*LINESPACING, "Connected to");
-        u8g2.drawStr(xOffset + 2, yOffset + 2*LINESPACING, APssid);
+        u8g2.drawStr(xOffset + 2, yOffset + 0*LINESPACING, "Con to");
+        u8g2.drawStr(xOffset + 10, yOffset + 0*LINESPACING, APssid);
         sprintf(outputStrBuff, "%4i", joinedWifiChannel);
+        u8g2.drawStr(xOffset + 2, yOffset + 2*LINESPACING, outputStrBuff);
+        sprintf(outputStrBuff, "%5.3f", cloudLatency/100000.0);
         u8g2.drawStr(xOffset + 2, yOffset + 3*LINESPACING, outputStrBuff);
       }
     }
@@ -312,16 +325,8 @@ void loop(void) {
     u8g2.sendBuffer();
   }
 
-  if( now - lastMorseUpdateMicros > morseOutputIntervalMicros ){
-    morseOutputLedUpdate( redLEDPin, true );
-    lastMorseUpdateMicros = now;
-  }
-
-  if( now - lastColudStatusSendMicros > cloudSendStatusIntervalMillis && joinedWifiNetwork ){
-
-    PostAndFetchDataFromCloudServer(DEV_STATUS);
-    lastColudStatusSendMicros = now;
-  }
-
+  lastLastGesture = lastGesture;
   lastMicros = now;
+
+  delay(mainLoopDelayMillis);
 }

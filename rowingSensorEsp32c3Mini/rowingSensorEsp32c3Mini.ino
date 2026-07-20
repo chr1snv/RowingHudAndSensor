@@ -1,30 +1,40 @@
-//#include "MPU9250_minimal.h"
-#include "MPU9250Faster.h" //accelerometer and gyro reading
 
+
+int16_t mx,my,mz;
+int16_t pmx,pmy,pmz; //previous loop magnetic values
 // Sensor on the same TwoWire instance as 9250 accel gyro (only 1 i2c interface on esp32-c3)
+#include <MPU9250Faster.h> //accelerometer and gyro reading
 #include <Adafruit_QMC5883P.h>
-
 Adafruit_QMC5883P qmc = Adafruit_QMC5883P();
 
 #define blueStatusLEDPin    8
-#include "morseCode.h"
 
 
 
+#include <GlobalDefinesAndFunctions.h>
+#include <storedConfig.h>
+#include <morseCode.h>
+#include <wifiConnection.h>
+#include <multipleDeviceTimeslotSync.h>
+#include <cloudConnection.h>
+#include <APWebConfig.h>
 
-#include "multipleDeviceTimeslotSync.h"
 
-
-
-
-
-
+char lastCsiInfoStr[CSI_INF_STR_LEN];
 
 void setup() {
 	Serial.begin(115200);
   delay(5000);
   for(int i = 0; i < 100; ++i)
     Serial.println("Serial output to syncronize");
+
+
+
+
+
+  hasDisplay_Out=0;
+
+
 	if (!mpu9250_init()) { //!mpu9250_begin()){ //
 		Serial.println("MPU9250 init failed");
 		//while (1) delay(1000);
@@ -51,7 +61,18 @@ void setup() {
 
   digitalWrite(blueStatusLEDPin, LOW);
 
-  wifiConnect();
+
+  //try to join saved network (phone wifi hotspot ap)
+  Serial.print(" init wifi ");
+	//esp_wifi_init();
+	joinedWifiChannel = connectWiFi(wifi_scanNetworks());
+
+  InitEspNow(joinedWifiChannel);
+
+  if(!joinedWifiNetwork){ //if couldn't join, start local ap and config webserver
+
+    startAPWebConfig();
+  }
 }
 
 
@@ -138,6 +159,8 @@ void sensorTask(){
 }
 
 
+uint8_t mainLoopDelayMillis = 10;
+
 void loop() {
 	unsigned long now = micros();
 	if (now - lastMicros < sampleIntervalUs)
@@ -151,6 +174,9 @@ void loop() {
     sensorTask();
     have_sync = false;
   }
+
+
   lastMicros = now;
+  delay(mainLoopDelayMillis);
 }
 

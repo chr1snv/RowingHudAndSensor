@@ -42,6 +42,9 @@ uint8_t fillPktHdr(char * outputBytes);
 //one loop is 1/10th of a second ( from delay(100); in wifiCamCarSecuritySystem.ino )
 #define INACTIVE_COMMAND_LOOP_INTERVAL 10
 #define NUMLOOPS_TO_STAY_ACTIVE_AFTER_COMMAND 100
+
+extern uint8_t mainLoopDelayMillis;
+
 extern int activelyCommanded;
 
 extern bool settingsRequested;

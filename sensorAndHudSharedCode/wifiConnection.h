@@ -296,6 +296,8 @@ uint8_t connectWiFi(uint8_t channelToCreateAp){ //returns channel set up on (for
 	//esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B);
 	//esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
 
+	esp_wifi_set_ps(WIFI_PS_NONE); //attempt to avoid packet buffering causing studdery/bursty sending
+
 	//check if a network with known credentials is in range (to get internet / cloud connection)
 
 	Serial.println("attempting to join stored network");

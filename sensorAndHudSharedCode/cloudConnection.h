@@ -9,9 +9,15 @@
 #include "GlobalDefinesAndFunctions.h"
 Preferences preferences;
 
+extern int16_t ax, ay, az, gx, gy, gz; //for accel and gyro sensors
+
+extern uint16_t devId;
+
 httpd_handle_t camera_httpd = NULL;
 
 unsigned long cloudSendStatusIntervalMillis = 200000;
+
+unsigned long cloudLatency = 0;
 
 
 uint16_t serverUrlLen = 0;
@@ -19,7 +25,7 @@ uint16_t serverCertLen = 0;
 char serverUrl[MAX_SVR_URL_LEN] = {'\0'};
 char serverCert[SVR_CERT_MAX_LEN] = {'\0'};
 
-uint16_t devId;
+
 
 
 #define MIN_STATUS_RESPONSE_LENGTH 68 //(2+2+5+5+5){19} +(5+5+5+5+5){25} +(10+5+2+2+2){21} + 2
@@ -52,6 +58,11 @@ uint8_t fillPktHdr(char * outputBytes){
 
 
 
+
+uint8_t lastTemperature;
+
+
+
 #define MIN_STATUS_RESPONSE_LENGTH 68 //(2+2+5+5+5){19} +(5+5+5+5+5){25} +(10+5+2+2+2){21} + 2
 #define LIGHT_STATUS_LEN 2
 #define MAG_SENSOR_LEN 51
@@ -68,8 +79,10 @@ uint16_t fillStatusString(char * outStr){
 
 	//snprintf( &(outStr[idx]), 3+1,  "% 3u", activelyCommanded); idx += 3;
 
-	uint8_t featureMask;
-	genFeatureMask( featureMask, hasMagSensor, hasMicSensor, hasLight_Out, hasSpeaker_Out );
+	uint16_t featureMask;
+	genFeatureMask( featureMask, hasFileServer, hasDistSensor, 
+    hasMagSensor, hasAccelSensor, hasGyroSensor, hasMicSensor, 
+    hasCameraSensor, hasDisplay_Out, hasLight_Out, hasSpeaker_Out );
 	snprintf( &(outStr[idx]), 2+1,  "% 2u", featureMask); idx += 2;
 
 
@@ -94,6 +107,17 @@ uint16_t fillStatusString(char * outStr){
 		//snprintf( &(outStr[idx]), 2+1,  "% 2u", magAlarmTriggered); idx += 2;
 		//snprintf( &(outStr[idx]), 2+1,  "% 2u", alarmOutput); idx += 2;
 	}
+
+  if( hasAccelSensor ){
+		snprintf( &(outStr[idx]), 5+1,  "% 5i", ax); idx += 5;
+		snprintf( &(outStr[idx]), 5+1,  "% 5i", ay); idx += 5;
+		snprintf( &(outStr[idx]), 5+1,  "% 5i", az); idx += 5;
+  }
+  if( hasGyroSensor ){
+		snprintf( &(outStr[idx]), 5+1,  "% 5i", gx); idx += 5;
+		snprintf( &(outStr[idx]), 5+1,  "% 5i", gy); idx += 5;
+		snprintf( &(outStr[idx]), 5+1,  "% 5i", gz); idx += 5;
+  }
 	
 	//memset() //snprintf will set a \0 at end so don't need to memset
 	return idx+1;
@@ -163,7 +187,7 @@ uint8_t doCommand( const char * cmd, uint16_t valLen, const char * value ){
 	uint8_t sucessfulyHandledCmd = 0;
 
 
-	/*
+	
 	if ( !strncmp(cmd, "mainDelay", 9) ){
 		uint8_t del = atoir_n(&value[valLen-1], valLen);
 		Serial.print("mainDelay"); Serial.println(del);
@@ -172,7 +196,7 @@ uint8_t doCommand( const char * cmd, uint16_t valLen, const char * value ){
 		sucessfulyHandledCmd = 5;
 	}
 
-	else*/ if(!strncmp(cmd, "setDevDesc", 10)){
+	else if(!strncmp(cmd, "setDevDesc", 10)){
 		preferences.begin("storedVals", false);
 			uint16_t storLen = min( valLen, (uint16_t)MAX_SVR_URL_LEN );
 			preferences.putBytes("devDescrip", value, storLen );
@@ -408,8 +432,15 @@ void PostAndFetchDataFromCloudServer(PostType postType){
 		Serial.println("attempt websocket connection");
 		mainLoopsSinceWebSockStartedConnecting = 0;
 
+		/*
+		esp_log_level_set("esp-tls", ESP_LOG_DEBUG);
+		esp_log_level_set("esp-tls-mbedtls", ESP_LOG_DEBUG);
+		esp_log_level_set("esp_websocket_client", ESP_LOG_DEBUG);
+		esp_log_level_set("mbedtls", ESP_LOG_DEBUG);
+		*/
+
 		ReadNextSvrInfo();
-		
+
 		if( isAUrl(serverUrl) ){
 
 			if( webSockClient != NULL ){
@@ -430,7 +461,9 @@ void PostAndFetchDataFromCloudServer(PostType postType){
 				//.subprotocol = 
 				.transport = WEBSOCKET_TRANSPORT_OVER_SSL,
 				.skip_cert_common_name_check = true,
-				
+
+				// FORCE DISABLING NAGLE'S ALGORITHM DIRECTLY (packet bundling (causes delay in real time updates))
+				//.disable_nagle = true,
 			};
 			webSockClient = esp_websocket_client_init(&ws_cfg);
 			Serial.println( "webSock cli inited");
@@ -446,6 +479,7 @@ void PostAndFetchDataFromCloudServer(PostType postType){
 	if( esp_websocket_client_is_connected(webSockClient) ){
 		//send a message to server 
 		Serial.print( " to Wss " );
+    unsigned long befrSend = micros();
 		int httpResponseCode;
 		uint8_t hdrOffset = fillPktHdr(lastCsiInfoStr);
 		if( postType == DEV_STATUS ){
@@ -456,7 +490,11 @@ void PostAndFetchDataFromCloudServer(PostType postType){
 			uint16_t setLen = fillSettingsString(&lastCsiInfoStr[hdrOffset]);
 			httpResponseCode = esp_websocket_client_send_bin(webSockClient, (const char *)&(lastCsiInfoStr[0]), hdrOffset+setLen, portMAX_DELAY);
 		}
+    unsigned long aftrSend = micros();
+
+    cloudLatency = (aftrSend-befrSend);
 		
+    Serial.print(cloudLatency/100000.0);
 
 		Serial.print( " resp: " );
 		Serial.println(httpResponseCode);

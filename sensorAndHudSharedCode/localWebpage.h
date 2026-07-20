@@ -5,7 +5,7 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 		<title>ESP32 Rowing HUD Settings</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 	</head>
-	<body style="color-scheme:dark; font-family:sans;">
+	<body style="color-scheme:dark; font-family:sans; background-color:black; color:white;">
 		<h1>ESP32 Rowing HUD Settings</h1>
 		<br/>
 		<table>

@@ -6,6 +6,9 @@
 #include "Arduino.h"
 #include "esp_websocket_client.h"
 
+#include "lwip/sockets.h"
+#include "esp_transport.h"
+
 #define WS_LOG_TAG "ws"
 //const char tag[] = "ws";
 
@@ -34,8 +37,31 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
 			ESP_LOGI( tag, "WEBSOCKET_EVENT_BEGIN\n" );
 			break;
 		case WEBSOCKET_EVENT_CONNECTED:
-			ESP_LOGI( tag, "WEBSOCKET_EVENT_CONNECTED\n" );
-			break;
+			//ESP_LOGI( tag, "WEBSOCKET_EVENT_CONNECTED\n" );
+
+
+      {
+            ESP_LOGI(tag, "WEBSOCKET_EVENT_CONNECTED\n");
+
+            // Extract the active file descriptor using the TLS error layout hook
+            int socket_fd = data->error_handle.esp_tls_stack_err; 
+
+            if (socket_fd > 0) {
+                int flag = 1;
+                // Force disable Nagle's buffering algorithm on the active socket
+                int result = setsockopt(socket_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+                if (result == 0) {
+                    ESP_LOGI(tag, "Successfully enabled TCP_NODELAY via TLS event error block\n");
+                } else {
+                    ESP_LOGE(tag, "Failed to set TCP_NODELAY: errno %d\n", errno);
+                }
+            } else {
+                ESP_LOGE(tag, "Could not fetch a valid socket file descriptor from the event context\n");
+            }
+            break;
+        }
+
+
 		case WEBSOCKET_EVENT_DISCONNECTED:
 			ESP_LOGI( tag, "WEBSOCKET_EVENT_DISCONNECTED\n" );
 			break;
