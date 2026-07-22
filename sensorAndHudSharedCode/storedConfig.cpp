@@ -3,6 +3,7 @@
 extern Preferences preferences;
 
 uint16_t devId=0;
+uint8_t devMode=0;
 
 bool lightLedValue = false;
 
@@ -16,43 +17,48 @@ bool hasGyroSensor=1;
 bool hasMicSensor=0;
 bool hasCameraSensor=0;
 
+bool hasSrvos_Out=0;
 bool hasDisplay_Out=1;
 bool hasLight_Out=0;
 bool hasSpeaker_Out=0;
 
 void genFeatureMask( uint16_t & featureMask, 
-    bool hasFileServer, bool hasDistSensor, 
-    bool hasMagSensor, bool hasAccelSensor, bool hasGyroSensor, 
-    bool hasMicSensor, bool hasCameraSensor, 
-    bool hasDisplayOut, 
-    bool hasLightOut, bool hasSpeakerOut ){
+	bool hasFileServer, bool hasDistSensor, 
+	bool hasMagSensor, bool hasAccelSensor, bool hasGyroSensor, 
+	bool hasMicSensor, bool hasCameraSensor, 
+	bool hasSrvosOut, bool hasDisplayOut, 
+	bool hasLightOut, bool hasSpeakerOut ){
 	featureMask = 0;
-  if( hasFileServer )
+	if( hasFileServer )
 		featureMask |= 0x01;
 	featureMask <<= 1;
 
-  if( hasDistSensor )
+	if( hasDistSensor )
 		featureMask |= 0x01;
 	featureMask <<= 1;
 
 	if( hasMagSensor )
 		featureMask |= 0x01;
 	featureMask <<= 1;
-  if( hasAccelSensor )
+	if( hasAccelSensor )
 		featureMask |= 0x01;
 	featureMask <<= 1;
-  if( hasGyroSensor )
+	if( hasGyroSensor )
 		featureMask |= 0x01;
 	featureMask <<= 1;
 
 	if( hasMicSensor )
 		featureMask |= 0x01;
 	featureMask <<= 1;
-  if( hasCameraSensor )
+	if( hasCameraSensor )
 		featureMask |= 0x01;
 	featureMask <<= 1;
 
-  if( hasDisplayOut )
+
+	if( hasSrvosOut )
+		featureMask |= 0x01;
+	featureMask <<= 1;
+	if( hasDisplayOut )
 		featureMask |= 0x01;
 	featureMask <<= 1;
 	if( hasLightOut )

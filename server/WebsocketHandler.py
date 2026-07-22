@@ -1,4 +1,9 @@
+import socket
+import networkCommon
 
+import struct
+
+import websockets
 
 #https://www.optimizationcore.com/coding/websocket-python-parsing-binary-frames-from-a-tcp-socket/
 async def websocketHandler(websocket):
@@ -22,17 +27,11 @@ async def websocketHandler(websocket):
 				return
 			if( type(msg) != type(b'') ):
 				msg = msg.encode('utf-8')
-			mIdx = 0
-			pktIdx = networkCommon.atoir_n(msg[0:3],3)
-			mIdx += 3
-			devOrCliId  = networkCommon.atoir_n(msg[mIdx : mIdx+4  ], 4)
-			mIdx += 4
-			numCmd = msg[mIdx] - b'0'[0] #ascii character difference to convert digit to int
-			mIdx += 1
-			cmdIdx = 0
-			fromDorC = msg[mIdx]
+			sync, pktIdx, devOrCliId, numCmd, fromDorC = struct.unpack("<BBHBB", msg[0:networkCommon.PACKET_HEADER_SIZE])
+
 			print( "pktIdx %i devOrCliId %s numCmd %i fromType %c" % (pktIdx, devOrCliId, numCmd, fromDorC) )
-			mIdx += 1
+			mIdx = networkCommon.PACKET_HEADER_SIZE
+			cmdIdx = 0
 			
 			deviceWithNewCmds = None
 			

@@ -111,7 +111,7 @@ async def startWebsocketServer():
 
 	print( "serving websocket at %s port %i" % (networkCommon.svrIp, websocketPort) )
 	#https://stackoverflow.com/questions/67810506/websockets-exceptions-connectionclosederror-code-1011-unexpected-error-no
-	async with serve(websocketHandler, networkCommon.svrIp, websocketPort, ping_interval=30, ping_timeout=30, ssl=ssl_context) as ws:
+	async with serve(WebsocketHandler.websocketHandler, networkCommon.svrIp, websocketPort, ping_interval=30, ping_timeout=30, ssl=ssl_context) as ws:
 		print('ws before await stop')
 		await stop
 		ws.close()
@@ -128,30 +128,30 @@ def startWebsocketServer_in_new_thread():
 ####concurrent / thread for checking if interfaces / ip addresses have changed
 
 def loopCheckIpHasChanged():
-	global svrIp, backend_thread
+	#global networkCommon.svrIp, networkCommon.backend_thread
 	backend_server = None
 	webSocketSvrThread = None
 
 	while(1):
-		currentIp = getIp()
-		if currentIp != svrIp:
+		currentIp = networkCommon.getIp()
+		if currentIp != networkCommon.svrIp:
 			print('ip has changed, rebinding servers...')
-			svrIp = currentIp
+			networkCommon.svrIp = currentIp
 
 			# Shutdown old servers properly
 			if backend_server is not None:
 				backend_server.shutdown()  # ← Proper shutdown
-				backend_thread.join(timeout=5)  # Wait for thread to exit
+				networkCommon.backend_thread.join(timeout=5)  # Wait for thread to exit
 
-			if stop != 0:
-				stop.get_loop().call_soon_threadsafe(stop.set_result, 1)
+			if networkCommon.stop != 0:
+				networkCommon.stop.get_loop().call_soon_threadsafe(stop.set_result, 1)
 				if webSocketSvrThread:
 					webSocketSvrThread.join(timeout=5)
 
 			# Start new servers
-			server_address = (svrIp, httpPort)
+			server_address = (networkCommon.svrIp, httpPort)
 			print(f"starting httpAsyncServer at {server_address[0]} port {server_address[1]}")
-			backend_server, backend_thread = start_http_server_in_new_thread(server_address, HTTPAsyncHandler)
+			backend_server, networkCommon.backend_thread = networkCommon.start_http_server_in_new_thread(server_address, HTTPHandler.HTTPAsyncHandler)
 
 			webSocketSvrThread = startWebsocketServer_in_new_thread()
 

@@ -8,6 +8,7 @@ extern Preferences preferences;
 extern bool joinedWifiNetwork;
 extern uint8_t joinedWifiChannel;
 
+extern bool espNowReady;
 
 #include "esp_websocket_client.h"
 extern esp_websocket_client_handle_t webSockClient;

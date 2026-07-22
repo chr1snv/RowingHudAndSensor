@@ -105,13 +105,12 @@ void startLocalWebServer(){
 
 
 int startAPWebConfig(){
-  espNowReady = false;
 
-  Serial.println("startAPWebConfig");
+	Serial.println("startAPWebConfig");
 
-  startLocalWebServer();
+	startLocalWebServer();
 
-  return 1;
+	return 1;
 }
 
 #endif

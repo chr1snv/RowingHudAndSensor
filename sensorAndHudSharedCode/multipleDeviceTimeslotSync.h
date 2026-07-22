@@ -1,4 +1,7 @@
 
+#ifndef MULTDEVTIMESYNC
+#define MULTDEVTIMESYNC
+
 #include <WiFi.h>
 #include "esp_wifi.h"
 int staRssi;
@@ -117,40 +120,32 @@ void onDataRecv(const esp_now_recv_info *macAndInfo, const uint8_t *data, int le
 
 
 
-// Wi-Fi placeholders
-const char* WIFI_SSID = "Internet";
-const char* WIFI_PASS = "4ydq9c1k";
-
-const uint16_t UDP_PORT = 5005;
-
-//WiFiUDP Udp;
-
-
 #define MAX_STORED_NETWORKS 10
-/*
-void wifiConnect(){
-  WiFi.mode(WIFI_STA); // STA mode is typical for ESP-NOW
-  WiFi.setChannel(CHANNEL); // one radio, set channel for both wifi and esp32-now
-  while (!WiFi.STA.started()) {
-    delay(100);
-  }
-  Serial.println(WiFi.macAddress());
 
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS); //udp brodcast (255.255.255.255) or multicast is not radio level, the ap has to re transmit it
-  unsigned long t0 = millis();
-  while (WiFi.status() != WL_CONNECTED &&
-          millis() - t0 < 20000) {
-    Serial.print("reattempting connection to wifi ");
-    Serial.println(WIFI_SSID);
-    delay(200);
-  }
-  
-  Serial.print("Connected to to wifi "); Serial.println(WIFI_SSID);
-  // start UDP
-  //Udp.begin(UDP_PORT);
-  //Serial.print("Udp listener started on port "); Serial.println( UDP_PORT );
-*/
+// Function to dynamically swap or update the broadcast peer layout
+void UpdateEspNowPeerChannel(uint8_t newChannel) {
+
+	if (!espNowReady) return;
+
+	// 1. Remove the old broadcast peer if it exists
+	if (esp_now_is_peer_exist(broadcastAddress)) {
+		esp_now_del_peer(broadcastAddress);
+	}
+
+	// 2. Re-register the peer matching the updated Wi-Fi system channel
+	esp_now_peer_info_t peerInfo = {};
+	memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+	peerInfo.channel = newChannel; // Sync with new home channel!
+	peerInfo.encrypt = false;      // Encryption must be false for broadcast
+
+	if (esp_now_add_peer(&peerInfo) == ESP_OK) {
+		Serial.printf("[ESP-NOW] Successfully synced peer configuration to Channel: %d\n", newChannel);
+	} else {
+		Serial.println("[ESP-NOW] Failed to update peer channel structure");
+	}
+}
+
 
 bool InitEspNow(uint8_t channel){
   esp_now_init();
@@ -174,24 +169,7 @@ bool InitEspNow(uint8_t channel){
   return true;
 }
 
+//using esp now instead of wifi udp because of ap rebrodcast (and polling) are both additional overhead / slow
 
 
-/* //not using wifi udp because of ap rebrodcast (and polling) are both additional overhead / slow
-// call regularly from loop() or a dedicated task
-void pollSyncPacket(){
-  int sz = Udp.parsePacket();
-  if (sz >= 8) {
-    uint8_t buf[8];
-    Udp.read(buf,8);
-    uint32_t epoch, interval;
-    memcpy(&epoch, buf, 4);
-    memcpy(&interval, buf+4,4);    // accept if reasonable
-    if (interval > 0 && epoch != 0) {
-      sync_epoch = epoch;
-      sync_interval = interval;
-      have_sync = true;
-      nextTxTime = millis();
-    }
-  }
-}
-*/
+#endif

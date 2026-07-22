@@ -96,6 +96,8 @@ def rPadStr(n, chars):
 	return bStr + bytes(n-len(bStr))
 
 
+PACKET_HEADER_SIZE = 6        # B B H B B format -> 6 bytes total
+
 strSendError = ""
 
 async def sendPkt(wSocket, pktNum, fromDevId, datInfoArr, fromDevType='s' ):

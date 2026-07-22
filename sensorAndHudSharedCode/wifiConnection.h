@@ -284,6 +284,29 @@ void fillStringWithRandomASCII(char * buf, size_t len){
 	}
 }
 
+bool InitEspNow(uint8_t channel);
+void UpdateEspNowPeerChannel(uint8_t newChannel);
+
+void WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+	switch (event) {
+		case ARDUINO_EVENT_WIFI_STA_CONNECTED: {
+			// Extracted directly from the router connection payload
+			uint8_t targetChannel = info.wifi_sta_connected.channel; 
+			Serial.printf("[WiFi] Connected to Access Point! Network channel is: %d\n", targetChannel);
+			if (!espNowReady)
+				InitEspNow(joinedWifiChannel);
+			else
+				UpdateEspNowPeerChannel(targetChannel); // Sync ESP-NOW broadcast context immediately
+			break;
+		}
+		case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+			Serial.println("[WiFi] Lost connection to hotspot.");
+			break;
+		default:
+			break;
+	}
+}
+
 #define WIFI_CONNECT_MAX_SECONDS_TO_WAIT 7
 #define MAX_STORED_NETWORKS 10
 uint8_t foundNetworkLen;
@@ -297,6 +320,9 @@ uint8_t connectWiFi(uint8_t channelToCreateAp){ //returns channel set up on (for
 	//esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
 
 	esp_wifi_set_ps(WIFI_PS_NONE); //attempt to avoid packet buffering causing studdery/bursty sending
+	
+	// 2. Register the System Event Listener before connecting
+	WiFi.onEvent(WiFiEvent);
 
 	//check if a network with known credentials is in range (to get internet / cloud connection)
 
@@ -366,5 +392,6 @@ uint8_t connectWiFi(uint8_t channelToCreateAp){ //returns channel set up on (for
 	Serial.print("Wifi tx power: ");
 	Serial.println( power );
 	
+	joinedWifiChannel = channelUsing;
 	return channelUsing;
 }

@@ -12,10 +12,11 @@ Preferences preferences;
 extern int16_t ax, ay, az, gx, gy, gz; //for accel and gyro sensors
 
 extern uint16_t devId;
+extern uint8_t devMode;
 
 httpd_handle_t camera_httpd = NULL;
 
-unsigned long cloudSendStatusIntervalMillis = 200000;
+unsigned long cloudSendStatusIntervalMillis = 1000000;
 
 unsigned long cloudLatency = 0;
 
@@ -42,84 +43,115 @@ void ObfsucatePass(char *str, uint8_t len){
 
 
 
-uint8_t sendPktNum = 0;
-uint8_t fillPktHdr(char * outputBytes){
-	//if( self.sendPktIdx >= 256 ):
-	//	self.sendPktIdx = 0
-	uint8_t idx = 0;
-	snprintf( &(outputBytes[idx]), 3+1, "%3i", sendPktNum ); idx += 3;
-	snprintf( &(outputBytes[idx]), 4+1, "% 4d", devId ); idx += 4;
-	//fill header
-	outputBytes[idx] = '1'; idx += 1;
-	outputBytes[idx] = 'd'; idx += 1;
-	sendPktNum++; //rollover at 255 because of uint8_t data type
-	return idx; //return offset in packet header
-}
-
-
-
 
 uint8_t lastTemperature;
 
+
+// 1. Declare the static packet header structure
+struct __attribute__((packed)) PacketHeader {
+    uint8_t  syncMarker;     // Always 0xAA
+    uint8_t  packetNum;		//sequence number of the packet (to drop paackets if arrive out of order)
+    uint16_t  deviceID;		//who is sending/authored the packet
+    uint8_t  commandCount;   // Number of trailing section blocks
+    uint8_t  typeOfSender;  //from device, client, or server
+};
+struct __attribute__((packed)) StatusSectionHeader {
+	uint8_t	 syncMarker;   // Always 0xBB
+	uint16_t deviceID;   //which device this packet was from
+	uint16_t featureMask;  // Bit flags indicating active payloads
+	uint16_t deviceMode;   // 1 = Master HUD, 2 = IMU Sensor Node, etc
+	int      staRssi;  //recieved wifi signal strength
+	uint8_t lastTemperature; //temperature of the esp32
+};
+
+struct __attribute__((packed)) FileServerStatus {
+	
+};
+
+struct __attribute__((packed)) DistSensorStatus {
+	uint32_t distance;
+};
+struct __attribute__((packed)) MagSensorStatus {
+	int16_t mx, my, mz;
+};
+struct __attribute__((packed)) AccelSensorStatus {
+	int16_t ax, ay, az;
+};
+struct __attribute__((packed)) GyroSensorStatus {
+	int16_t gx, gy, gz;
+};
+struct __attribute__((packed)) MicSensorStatus {
+	uint8_t samples[1024];
+};
+
+struct __attribute__((packed)) SrvoStatus {
+	int32_t commandedAngle;
+	int16_t commandedWatts;
+	int16_t commandedAcceleration;
+	uint16_t actualWatts;
+	uint32_t actualVelocity;
+	uint32_t actualPosition;
+};
+struct __attribute__((packed)) DispOutputStatus {
+	
+};
+struct __attribute__((packed)) LightOutputStatus {
+	bool on;
+};
+struct __attribute__((packed)) SpeakerStatus {
+	
+};
+
+
+uint8_t sendPktNum = 0; //rollover at 255 because of uint8_t data type
+uint8_t fillPktHdr(char * outputBytes){
+	*(PacketHeader *)&outputBytes[0] = { 0xAA, sendPktNum++, devId, 1, 'd' };
+	return sizeof( PacketHeader ); //return offset in outputBytes
+}
 
 
 #define MIN_STATUS_RESPONSE_LENGTH 68 //(2+2+5+5+5){19} +(5+5+5+5+5){25} +(10+5+2+2+2){21} + 2
 #define LIGHT_STATUS_LEN 2
 #define MAG_SENSOR_LEN 51
-uint16_t fillStatusString(char * outStr){
-	//+1's to snprintf lengths because of \0 null terminator always appended
+uint16_t fillStatusBytes(char * outBytes){
 
 	uint16_t idx = 0;
 
 	//fill header
-	snprintf( &(outStr[idx]), 11+1, "Stat" ); idx += 11;
-	snprintf( &(outStr[idx]), 6+1, "% 6d", MIN_STATUS_RESPONSE_LENGTH ); idx += 6;
+
+	uint16_t featureMask;
+	genFeatureMask( featureMask, hasFileServer, hasDistSensor, 
+    hasMagSensor, hasAccelSensor, hasGyroSensor, hasMicSensor, 
+    hasCameraSensor, hasSrvos_Out, hasDisplay_Out, hasLight_Out, hasSpeaker_Out );
+
+	*(StatusSectionHeader *)&outBytes[0] = { 0xBB, devId, featureMask, devMode, staRssi, lastTemperature };
+	idx = sizeof( StatusSectionHeader ); //return offset in outputBytes
+
+	//fill header
+	//snprintf( &(outStr[idx]), 6+1, "% 6d", MIN_STATUS_RESPONSE_LENGTH ); idx += 6;
 
 	//fill data
 
 	//snprintf( &(outStr[idx]), 3+1,  "% 3u", activelyCommanded); idx += 3;
 
-	uint16_t featureMask;
-	genFeatureMask( featureMask, hasFileServer, hasDistSensor, 
-    hasMagSensor, hasAccelSensor, hasGyroSensor, hasMicSensor, 
-    hasCameraSensor, hasDisplay_Out, hasLight_Out, hasSpeaker_Out );
-	snprintf( &(outStr[idx]), 2+1,  "% 2u", featureMask); idx += 2;
-
-
-	snprintf( &(outStr[idx]), 5+1,  "% 5i", staRssi); idx += 5;
-	snprintf( &(outStr[idx]), 5+1,  "% 5d", lastTemperature); idx += 5;
-
-	if(hasLight_Out)
-		snprintf( &(outStr[idx]), 2+1,  "% 2u", (int)lightLedValue); idx += 2;
-
 	if( hasMagSensor ){
-		//snprintf( &(outStr[idx]), 2+1,  "% 2u", alarmArmed); idx += 2;
-		//snprintf( &(outStr[idx]), 5+1,  "% 5i", magAX); idx += 5; //alarmInit_magSample.X);
-		//snprintf( &(outStr[idx]), 5+1,  "% 5i", magAY); idx += 5; //alarmInit_magSample.Y);
-		//snprintf( &(outStr[idx]), 5+1,  "% 5i", magAZ); idx += 5; //alarmInit_magSample.Z);
-
-		snprintf( &(outStr[idx]), 5+1,  "% 5i", pmx); idx += 5; //compass.magSample.X);
-		snprintf( &(outStr[idx]), 5+1,  "% 5i", pmy); idx += 5; //compass.magSample.Y);
-		snprintf( &(outStr[idx]), 5+1,  "% 5i", pmz); idx += 5; //compass.magSample.Z);
-
-		//snprintf( &(outStr[idx]), 10+1, "% 10f", magHeading); idx += 10;
-		//snprintf( &(outStr[idx]), 5+1,  "% 5i", magAlarmDiff); idx += 5;
-		//snprintf( &(outStr[idx]), 2+1,  "% 2u", magAlarmTriggered); idx += 2;
-		//snprintf( &(outStr[idx]), 2+1,  "% 2u", alarmOutput); idx += 2;
+		*(MagSensorStatus *)&outBytes[idx] = { mx, my, mz };
+		idx += sizeof(MagSensorStatus);
 	}
-
   if( hasAccelSensor ){
-		snprintf( &(outStr[idx]), 5+1,  "% 5i", ax); idx += 5;
-		snprintf( &(outStr[idx]), 5+1,  "% 5i", ay); idx += 5;
-		snprintf( &(outStr[idx]), 5+1,  "% 5i", az); idx += 5;
+		*(AccelSensorStatus *)&outBytes[idx] = { ax, ay, az };
+		idx += sizeof(AccelSensorStatus);
   }
   if( hasGyroSensor ){
-		snprintf( &(outStr[idx]), 5+1,  "% 5i", gx); idx += 5;
-		snprintf( &(outStr[idx]), 5+1,  "% 5i", gy); idx += 5;
-		snprintf( &(outStr[idx]), 5+1,  "% 5i", gz); idx += 5;
+		*(GyroSensorStatus *)&outBytes[idx] = { ax, ay, az };
+		idx += sizeof(GyroSensorStatus);
   }
+
+  //if(hasLight_Out)
+	//	snprintf( &(outStr[idx]), 2+1,  "% 2u", (int)lightLedValue); idx += 2;
 	
 	//memset() //snprintf will set a \0 at end so don't need to memset
+	outBytes[idx] = 0;
 	return idx+1;
 }
 
@@ -281,7 +313,7 @@ uint8_t doCommand( const char * cmd, uint16_t valLen, const char * value ){
 	}
 	else if(!strncmp(cmd, "getStatus", 9)){
 		uint16_t pktIdx = fillPktHdr(lastCsiInfoStr);
-		pktIdx += fillStatusString(&lastCsiInfoStr[pktIdx]);
+		pktIdx += fillStatusBytes(&lastCsiInfoStr[pktIdx]);
 		Serial.print("sendingStatus ");Serial.println(pktIdx);
 		esp_websocket_client_send_bin(webSockClient, (const char *)&(lastCsiInfoStr[0]), pktIdx, portMAX_DELAY);
 		sucessfulyHandledCmd = 22;
@@ -483,7 +515,7 @@ void PostAndFetchDataFromCloudServer(PostType postType){
 		int httpResponseCode;
 		uint8_t hdrOffset = fillPktHdr(lastCsiInfoStr);
 		if( postType == DEV_STATUS ){
-			uint16_t statLen = fillStatusString(&lastCsiInfoStr[hdrOffset]);
+			uint16_t statLen = fillStatusBytes(&lastCsiInfoStr[hdrOffset]);
 			//printPayload(hdrOffset, hdrOffset+statLen, lastCsiInfoStr );
 			httpResponseCode = esp_websocket_client_send_bin(webSockClient, (const char *)&(lastCsiInfoStr[0]), hdrOffset+statLen, portMAX_DELAY);
 		}else if( postType == DEV_SETTINGS ){

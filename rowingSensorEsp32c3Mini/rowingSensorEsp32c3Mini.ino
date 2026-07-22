@@ -64,10 +64,8 @@ void setup() {
 
   //try to join saved network (phone wifi hotspot ap)
   Serial.print(" init wifi ");
-	//esp_wifi_init();
-	joinedWifiChannel = connectWiFi(wifi_scanNetworks());
+	connectWiFi(wifi_scanNetworks());
 
-  InitEspNow(joinedWifiChannel);
 
   if(!joinedWifiNetwork){ //if couldn't join, start local ap and config webserver
 
@@ -76,7 +74,6 @@ void setup() {
 }
 
 
-unsigned long lastMicros = 0;
 
 #define sP(x)  (Serial.print(x))
 #define sPln(x) (Serial.println(x))
@@ -159,6 +156,9 @@ void sensorTask(){
 }
 
 
+unsigned long lastMicros = 0;
+unsigned long lastCloudStatusSendMicros = 0;
+
 uint8_t mainLoopDelayMillis = 10;
 
 void loop() {
@@ -168,7 +168,13 @@ void loop() {
   /*
   pollSyncPacket(); //using esp-now instead of udp
   */
-  
+
+  if( now - lastCloudStatusSendMicros > cloudSendStatusIntervalMillis && joinedWifiNetwork ){
+
+    PostAndFetchDataFromCloudServer(DEV_STATUS);
+    lastCloudStatusSendMicros = now;
+  }
+
   if( have_sync && now >= nextTxTime ){
     //Serial.println("reading sensor and sending pkt");
     sensorTask();

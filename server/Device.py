@@ -1,11 +1,19 @@
 
 import networkCommon
 
+# Define your C++ struct sizes in bytes for explicit pointer sliding
+
+STATUS_SECTION_HDR_SIZE = 12   # B H H H F B format -> 12 bytes total
+MAG_SENSOR_SIZE = 6          # h h h (3 * int16) -> 6 bytes
+ACCEL_SENSOR_SIZE = 6        # h h h (3 * int16) -> 6 bytes
+GYRO_SENSOR_SIZE = 6         # h h h (3 * int16) -> 6 bytes
+
+
 #last status
 class Device:
 
 	def __init__(self):
-	
+
 		self.cmds = [] #pending commands to send to the device
 
 		self.devId = -1
@@ -13,6 +21,10 @@ class Device:
 		self.controlingCliId = -1
 
 		self.description = 'Device Name'
+
+
+		self.featureMask = 0
+
 
 		self.wSock = None
 
@@ -47,6 +59,8 @@ class Device:
 		self.magAlarmTriggered = ""
 		self.alarmOutput       = ""
 
+
+
 	async def send( self, fromDevId, datInfoArr ):
 		if self.wSock != None:
 			#print("send to device " )
@@ -62,17 +76,20 @@ class Device:
 	def fillValues(self, statStr):
 		self.postStatus = statStr
 		self.lastStatusTime = networkCommon.curMillis()
-		cmdValArr = []
-		print(statStr)
-		numSrvos = int( statStr[5:7] )
-		print("stat numSrvos %i" % numSrvos)
-		idx = 7
-		for i in range(numSrvos):
-			cmdValArr.append( [ "angAxis"+str(i), statStr[idx:idx+3] ] )
-			idx += 3
-			#print( "a%i %i" % (i, int(cmdValArr[-1][1])) )
-		numCmdsCleared = clearCompletedCommands(self.cmds, cmdValArr)
-		print( "cmdsCleared %i" % numCmdsCleared )
+		try:
+			cmdValArr = []
+			print(statStr)
+			numSrvos = int( statStr[5:7] )
+			print("stat numSrvos %i" % numSrvos)
+			idx = 7
+			for i in range(numSrvos):
+				cmdValArr.append( [ "angAxis"+str(i), statStr[idx:idx+3] ] )
+				idx += 3
+				#print( "a%i %i" % (i, int(cmdValArr[-1][1])) )
+			numCmdsCleared = clearCompletedCommands(self.cmds, cmdValArr)
+			print( "cmdsCleared %i" % numCmdsCleared )
+		except Exception as e:
+			print( "fillValues error %s" % str(e) )
 
 	def fillSettings(self, datStr, datStrLen ):
 		self.lastSettings = datStr
@@ -84,6 +101,30 @@ class Device:
 		self.lastImage = datStr
 		self.lastImageLength = datStrLen
 		self.lastImageTime = networkCommon.curMillis()
+
+
+featureBitToString = \
+			['File', 'Dist', 'Mag', 'Accel', 'Gyro', 'Mic', 'Cam', 'Disp', 'Light', 'Speaker' ]
+deviceTypes = [ \
+[ 'HUD', 	 	0,	     0,		1,		1,		1,		0,		0,		1,		0,		0], \
+[ 'IMU_Pod',	0,	     0,		1,		1,		1,		0,		0,		0,		0,		0]  ]
+
+def maskHasBit(mask, n):
+	return bool(mask & (1 << n))
+
+def maskHasBits(mask, bitArr):
+	for n in len(bitArr):
+		if not bool(mask & (bool(bitArr[n] << n))):
+			return False
+	return True
+
+def firstMatchingDeviceTypeToMask(mask):
+	for i in len(deviceTypes):
+		devType = deviceTypees[i]
+		if maskHasBits(mask, devType[0:] ):
+			return i
+	return -1
+
 
 def GetCommandListBytes(cmds):
 	#output = io.BytesIO()

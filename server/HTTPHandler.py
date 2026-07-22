@@ -1,4 +1,6 @@
+import http.server
 
+import re, os
 
 class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 	def __init__(self, request, client_address, server):
