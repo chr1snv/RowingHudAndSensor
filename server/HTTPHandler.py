@@ -1,6 +1,10 @@
 import http.server
 
-import re, os
+import Accounts, Client, Device, FileServer
+
+import re, os, io
+
+from datetime import datetime
 
 class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 	def __init__(self, request, client_address, server):
@@ -72,7 +76,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 			getKeyValid = False
 			if len(parts) > 2:
 				getKey = parts[-1].encode('utf-8')
-				(client,pktAuth) = ClientAndPktAuthFromGetKey( getKey )
+				(client,pktAuth) = Accounts.ClientAndPktAuthFromGetKey( getKey )
 				getKeyValid = len(pktAuth) > 0
 			print('parts %s parts[-2] %s getKeyValid %i' % (str(parts), str(parts[-2]), getKeyValid) )
 
@@ -150,7 +154,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					cliIdStr = str( client.cliId )
 					output.write("<div id=\"cliId\" style=\"display:none;\">" + cliIdStr + "</div>")
 					print("dev selec 1.5")
-					cleanupNonRecentConnections()
+					Accounts.cleanupNonRecentConnections()
 					for devId, dev in Device.devices.items():
 						devIdStr = str(dev.devId)
 						output.write('<tr>')

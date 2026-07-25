@@ -170,12 +170,13 @@ const MAX_PACKET_SIZE   = 4096;
 const maxQueuedMessages = 10;
 const stagingBuffers 	= new Array(maxQueuedMessages);
 const stagingViews 		= new Array(maxQueuedMessages);
-const stagingUint8Array = new Array(maxQueuedMessages);
+const stagingUint8Arrays = new Array(maxQueuedMessages);
 for( let i = 0; i < maxQueuedMessages; ++i ){
 	stagingBuffers[i]		= new ArrayBuffer(MAX_PACKET_SIZE);
-	stagingViews[i]			= new DataView(stagingBuffer);
-	stagingUint8Arrays[i]	= new Uint8Array(stagingBuffer);
-}
+	stagingViews[i]			= new DataView(stagingBuffers[i]);
+	stagingUint8Arrays[i]	= new Uint8Array(stagingBuffers[i]);
+} 
+let stagingIdx = 0;
 
 
 let thisCliId = -1;
@@ -183,11 +184,17 @@ let thisCliId = -1;
 let pktIdx = 0;
 function sendCmds( datas, callback ) {
 
-	let pktIdxStr = pktIdx.toString().padStart(3);
-	let devIdStr = (thisCliId).toString().padStart(4);
-	let numDatAndDevType = datas.length + "c";
+	let stagingView = stagingViews[stagingIdx];
+	stagingView.setUint8( 0, 0xAA );
+	stagingView.setUint8( 1, pktIdx );
+	stagingView.setUint16(2, thisCliId, true );
+	stagingView.setUint8( 4, datas.length );
+	stagingView.setUint8( 5, te.encode('c') );
 
-	let sendStr = pktIdxStr + devIdStr + numDatAndDevType;
+	let offset = 6;
+
+	let stagingUint8Array = stagingUint8Arrays[stagingIdx];
+
 
 	for( let i = 0; i < datas.length; ++i){
 		let data = datas[i];
@@ -196,8 +203,8 @@ function sendCmds( datas, callback ) {
 		let dat		= data[1];
 		let datLen	= data[2];
 		if( dat == undefined ){
-			dat = ''
-			datLen = 0
+			dat = '';
+			datLen = 0;
 		}
 		if( datLen == undefined ){
 			if( dat.length == undefined )
@@ -205,16 +212,31 @@ function sendCmds( datas, callback ) {
 			datLen = dat.length;
 		}
 
-		let datTypeStr = datType.padEnd(11);
-		let datLenStr = (datLen.toString()).padStart(6);
+		let encDatType = te.encode( datType.padEnd(11, '\0') );
+
+		stagingUint8Array.set(encDatType, offset);
+		offset += 11;
 		
-		sendStr += datTypeStr+datLenStr+dat;
+		stagingView.setUint16( offset, datLen );
+		offset += 2;
+
+		let encDat = te.encode(dat);
+		stagingUint8Array.set( encDat, offset );
+		offset += encDat.length;
+
+		//sendStr += datTypeStr+datLenStr+dat;
 	}
 
-	sendToServerOverWebsocket(sendStr, callback);
+
+	// 4. Create a zero-copy trimmed window slice spanning from byte 0 to our exact end offset
+	const activePacketView = stagingUint8Array.subarray(0, offset);
+
+	sendToServerOverWebsocket(activePacketView, callback);
+	
 	pktIdx += 1;
 	if( pktIdx > 255 )
-		pktIdx = 0
+		pktIdx = 0;
+	stagingIdx += 1;
 }
 
 function sendCmd(datType, dat, datLen=undefined, callBack=undefined){

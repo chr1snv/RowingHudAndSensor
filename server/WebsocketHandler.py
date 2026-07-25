@@ -1,5 +1,6 @@
 import socket
-import networkCommon
+import networkCommon, Client, Accounts
+
 
 import struct
 
@@ -40,9 +41,11 @@ async def websocketHandler(websocket):
 			while cmdIdx < numCmd:
 				print(msg[mIdx : mIdx+11+20])
 				datType = msg[mIdx:mIdx+11]
+				print("datType %s" % datType)
 				mIdx += 11
-				datLen = networkCommon.atoir_n(msg[mIdx : mIdx+6], 6)
-				mIdx += 6
+				datLen = int.from_bytes( msg[mIdx : mIdx + 2], byteorder="big" )
+				print( "datLenBytes %s datLen %i" % ( msg[mIdx: mIdx+2],  datLen ) )
+				mIdx += 2
 				datStr = msg[mIdx:mIdx+datLen]
 				if fromDorC == ord('d'): #data from device
 					lenDevsBeforeAllocate = len( Device.devices )
@@ -111,9 +114,9 @@ async def websocketHandler(websocket):
 							nextAllowedAttemptTime = client.getAndIncrementNextLoginAttemptTime(rcvTime)
 							if nextAllowedAttemptTime  > rcvTime:
 								raise Exception("rate limit wait %i secs" % ((nextAllowedAttemptTime - rcvTime )/1000) )
-							if not pendingLoginUname in validClientLogins.keys():
+							if not pendingLoginUname in Accounts.validClientLogins.keys():
 								raise Exception("username not found")
-							storedLogin = validClientLogins[pendingLoginUname]
+							storedLogin = Accounts.validClientLogins[pendingLoginUname]
 							print('UserName found')
 							if storedLogin[0] == loginPass:
 								print('loginPassMatches')
@@ -149,7 +152,7 @@ async def websocketHandler(websocket):
 						if datType.startswith(b'getKey'): #generate a get key make it active and return it
 							authDCmdRequested = True
 							getKey = networkCommon.getRandomASCIIByteArrWithLength(16).decode('utf-8').encode('utf-8');
-							activeGetKeys[getKey] = client
+							Accounts.activeGetKeys[getKey] = client
 							#print("getKey 2 client.wSock %s client.websocket.remote_address %s" % (str(client.wSock), str(client.wSock.remote_address)) )
 							await client.send(Client.svrDevId, [('getKey', len(getKey), getKey)])
 						if datType.startswith(b'logout'):
