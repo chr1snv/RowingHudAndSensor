@@ -140,6 +140,8 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					output.write("</style>")
 					output.write("<script src='commonFunctions.js'></script>")
 					output.write("<body style=\"background:black; background-image:url('starFieldTileBackground.jpg'); color:white; font-family:sans;\">")
+					output.write("<p id=\"networkAuthText\"></p>")
+					output.write("<a id=\"networkAuthLink\"></a>")
 					output.write("<table><tr>")
 					output.write("<td><button onclick=\"getFile(finishUrlGoto,\'devSelection.html\')\">R E F R E S H</button></td>")
 					output.write("<td><h2>last refreshed  " + now.strftime("%Y-%m-%d %H:%M:%S") + "</h2></td>")

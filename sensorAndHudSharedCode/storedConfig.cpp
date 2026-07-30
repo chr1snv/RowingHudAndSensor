@@ -29,43 +29,18 @@ void genFeatureMask( uint16_t & featureMask,
 	bool hasSrvosOut, bool hasDisplayOut, 
 	bool hasLightOut, bool hasSpeakerOut ){
 	featureMask = 0;
-	if( hasFileServer )
-		featureMask |= 0x01;
-	featureMask <<= 1;
 
-	if( hasDistSensor )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-
-	if( hasMagSensor )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-	if( hasAccelSensor )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-	if( hasGyroSensor )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-
-	if( hasMicSensor )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-	if( hasCameraSensor )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-
-
-	if( hasSrvosOut )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-	if( hasDisplayOut )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-	if( hasLightOut )
-		featureMask |= 0x01;
-	featureMask <<= 1;
-	if( hasSpeakerOut )
-		featureMask |= 0x01;
+	if( hasFileServer )   featureMask |= (1 << 0);
+	if( hasDistSensor )   featureMask |= (1 << 1);
+	if( hasMagSensor )    featureMask |= (1 << 2);
+	if( hasAccelSensor )  featureMask |= (1 << 3);
+	if( hasGyroSensor )   featureMask |= (1 << 4);
+	if( hasMicSensor )    featureMask |= (1 << 5);
+	if( hasCameraSensor ) featureMask |= (1 << 6);
+	if( hasSrvosOut )     featureMask |= (1 << 7);
+	if( hasDisplayOut )   featureMask |= (1 << 8);
+	if( hasLightOut )     featureMask |= (1 << 9);
+	if( hasSpeakerOut )   featureMask |= (1 << 10);
 }
 
 
@@ -75,6 +50,7 @@ void genFeatureMask( uint16_t & featureMask,
   //read config
 void readPreferncesStoredConfig(){
 	preferences.begin("storedVals", true);
+	/*
 		devId = preferences.getUChar( "devId" );
 		hasLight_Out = preferences.getBool( "hasLight" );
 		Serial.print("hasLight "); Serial.println( hasLight_Out );
@@ -84,5 +60,6 @@ void readPreferncesStoredConfig(){
 		Serial.print("hasMicSensor "); Serial.println( hasMicSensor );
 		hasSpeaker_Out = preferences.getBool( "hasSpkr" );
 		Serial.print("hasSpeaker "); Serial.println( hasSpeaker_Out );
+	*/
 	preferences.end();
 }

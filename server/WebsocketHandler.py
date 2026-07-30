@@ -1,5 +1,5 @@
 import socket
-import networkCommon, Client, Accounts
+import networkCommon, Device, Client, Accounts
 
 
 import struct
@@ -62,7 +62,7 @@ async def websocketHandler(websocket):
 					print( "from %s devId: %i datType: %s datLen: %i controllingCliId %i client %i" % (chr(fromDorC), devOrCliId, datType, datLen, device.controlingCliId, cliIdNum) )
 					device.wSock = websocket #for sending data to device
 					if datType.startswith(b"Stat"):
-						device.fillValues( datStr ) #read the status data in from device
+						device.fillStatus( datStr ) #read the status data in from device
 						#respond with queued commands
 						cmdDatArr = Device.GetCommandListBytes(device.cmds)
 						if( len(cmdDatArr) > 0 ):

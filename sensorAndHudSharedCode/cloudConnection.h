@@ -50,13 +50,14 @@ uint8_t lastTemperature;
 // 1. Declare the static packet header structure
 struct __attribute__((packed)) PacketHeader {
     uint8_t  syncMarker;     // Always 0xAA
-    uint8_t  packetNum;		//sequence number of the packet (to drop paackets if arrive out of order)
+    uint8_t  packetNum;		//sequence number of the packet (to drop packets if arrive out of order)
     uint16_t  deviceID;		//who is sending/authored the packet
     uint8_t  commandCount;   // Number of trailing section blocks
     uint8_t  typeOfSender;  //from device, client, or server
 };
 struct __attribute__((packed)) StatusSectionHeader {
-	uint8_t	 syncMarker;   // Always 0xBB
+	char     sectionType[11] = "Status";   // Always 0xBB
+	uint16_t sectionLength;
 	uint16_t deviceID;   //which device this packet was from
 	uint16_t featureMask;  // Bit flags indicating active payloads
 	uint16_t deviceMode;   // 1 = Master HUD, 2 = IMU Sensor Node, etc
@@ -102,6 +103,48 @@ struct __attribute__((packed)) SpeakerStatus {
 	
 };
 
+uint16_t getLengthOfSectionsForMask ( uint16_t featureMask, uint8_t numServos ){
+	uint16_t lengthOfSections = 0;
+	if( featureMask | 0x01 )
+		lengthOfSections += sizeof(FileServerStatus);
+	featureMask >>= 1;
+
+	if( featureMask | 0x01 )
+		lengthOfSections += sizeof(DistSensorStatus);
+	featureMask >>= 1;
+
+	if( featureMask | 0x01 )
+		lengthOfSections += sizeof(MagSensorStatus);
+	featureMask >>= 1;
+	if( featureMask | 0x01 )
+		lengthOfSections += sizeof(AccelSensorStatus);
+	featureMask >>= 1;
+	if( featureMask | 0x01 )
+		lengthOfSections += sizeof(GyroSensorStatus);
+	featureMask >>= 1;
+
+	if( featureMask | 0x01 )
+		lengthOfSections += sizeof(MicSensorStatus);
+	featureMask >>= 1;
+	//if( hasCameraSensor )
+	//	featureMask |= 0x01;
+	featureMask >>= 1;
+
+
+	//if( hasSrvosOut )
+	//	featureMask |= 0x01;
+	featureMask >>= 1;
+	//if( hasDisplayOut )
+	//	featureMask |= 0x01;
+	featureMask >>= 1;
+	if( featureMask | 0x01 )
+		lengthOfSections += sizeof(LightOutputStatus);
+	featureMask >>= 1;
+	if( featureMask | 0x01 )
+		lengthOfSections += sizeof(SpeakerStatus);
+	return lengthOfSections;
+}
+
 
 uint8_t sendPktNum = 0; //rollover at 255 because of uint8_t data type
 uint8_t fillPktHdr(char * outputBytes){
@@ -120,16 +163,32 @@ uint16_t fillStatusBytes(char * outBytes){
 	//fill header
 
 	uint16_t featureMask;
+	uint16_t lengthOfSections;
 	genFeatureMask( featureMask, hasFileServer, hasDistSensor, 
-    hasMagSensor, hasAccelSensor, hasGyroSensor, hasMicSensor, 
-    hasCameraSensor, hasSrvos_Out, hasDisplay_Out, hasLight_Out, hasSpeaker_Out );
+					hasMagSensor, hasAccelSensor, hasGyroSensor, 
+					hasMicSensor, hasCameraSensor,
+					hasSrvos_Out, hasDisplay_Out, hasLight_Out, hasSpeaker_Out );
 
-	*(StatusSectionHeader *)&outBytes[0] = { 0xBB, devId, featureMask, devMode, staRssi, lastTemperature };
-	idx = sizeof( StatusSectionHeader ); //return offset in outputBytes
+
+	lengthOfSections = getLengthOfSectionsForMask( featureMask, 0 );
 
 	//fill header
-	//snprintf( &(outStr[idx]), 6+1, "% 6d", MIN_STATUS_RESPONSE_LENGTH ); idx += 6;
 
+	StatusSectionHeader * hdr = (StatusSectionHeader *)&outBytes[0];
+	strncpy(hdr->sectionType, "Status", sizeof(hdr->sectionType) - 1);
+	//hdr->sectionType		= char[] {'S','t','a','t','u','s', '\0', '\0', '\0', '\0', '\0'}[11];
+	hdr->sectionLength		= sizeof(StatusSectionHeader)+lengthOfSections;
+	hdr->deviceID			= devId;
+	hdr->featureMask		= featureMask;
+	hdr->deviceMode			= devMode;
+	hdr->staRssi 			= staRssi;
+	hdr->lastTemperature	= lastTemperature;
+	idx = sizeof( StatusSectionHeader ); //return offset in outputBytes
+
+	Serial.print("Generated Mask: ");
+	Serial.println(featureMask);
+	Serial.print(hdr->featureMask, BIN);
+	//Serial.printf("Binary Mask: %016b\n", hdr->featureMask);
 	//fill data
 
 	//snprintf( &(outStr[idx]), 3+1,  "% 3u", activelyCommanded); idx += 3;
@@ -138,16 +197,16 @@ uint16_t fillStatusBytes(char * outBytes){
 		*(MagSensorStatus *)&outBytes[idx] = { mx, my, mz };
 		idx += sizeof(MagSensorStatus);
 	}
-  if( hasAccelSensor ){
+	if( hasAccelSensor ){
 		*(AccelSensorStatus *)&outBytes[idx] = { ax, ay, az };
 		idx += sizeof(AccelSensorStatus);
-  }
-  if( hasGyroSensor ){
-		*(GyroSensorStatus *)&outBytes[idx] = { ax, ay, az };
+	}
+	if( hasGyroSensor ){
+		*(GyroSensorStatus *)&outBytes[idx] = { gx, gy, gz };
 		idx += sizeof(GyroSensorStatus);
-  }
+	}
 
-  //if(hasLight_Out)
+	//if(hasLight_Out)
 	//	snprintf( &(outStr[idx]), 2+1,  "% 2u", (int)lightLedValue); idx += 2;
 	
 	//memset() //snprintf will set a \0 at end so don't need to memset

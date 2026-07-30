@@ -1,6 +1,8 @@
 
 import networkCommon
 
+import struct
+
 # Define your C++ struct sizes in bytes for explicit pointer sliding
 
 STATUS_SECTION_HDR_SIZE = 12   # B H H H F B format -> 12 bytes total
@@ -73,21 +75,52 @@ class Device:
 				return True
 		return False
 
-	def fillValues(self, statStr):
-		self.postStatus = statStr
+
+#uint16_t deviceID;   //which device this packet was from
+#uint16_t featureMask;  // Bit flags indicating active payloads
+#uint16_t deviceMode;   // 1 = Master HUD, 2 = IMU Sensor Node, etc
+#int      staRssi;  //recieved wifi signal strength
+#uint8_t lastTemperature; //temperature of the esp32
+
+	def fillStatus( self, statBytes ):
+		self.postStatus = statBytes
 		self.lastStatusTime = networkCommon.curMillis()
 		try:
+			sidx = 0
 			cmdValArr = []
-			print(statStr)
-			numSrvos = int( statStr[5:7] )
-			print("stat numSrvos %i" % numSrvos)
-			idx = 7
-			for i in range(numSrvos):
-				cmdValArr.append( [ "angAxis"+str(i), statStr[idx:idx+3] ] )
-				idx += 3
+			print(statBytes)
+			(
+				self.deviceID, 
+				self.featureMask, 
+				self.deviceMode, 
+				self.staRssi, 
+				self.lastTemperature
+			) = struct.unpack( "<HHHiB", statBytes[sidx : sidx + 11] )
+			sidx += 11
+			print("devId %i ftMask %i devMd %i staRssi %i lastTemp %i" % 
+				(self.deviceID, self.featureMask, self.deviceMode, self.staRssi, self.lastTemperature) )
+			devType = firstMatchingDeviceTypeToMask(self.featureMask)
+			print( "DevType: %s" % (deviceTypes[devType][0]) ) 
+			
+			#if maskHasBit( self.featureMask, 0 ):
+			#	sidx = fillFileStatus( self, statBytes, sidx )
+			#if maskHasBit( self.featureMask, 1 ):
+			#	sidx = fillDistStatus( self, statBytes, sidx )
+			if maskHasBit( self.featureMask, 2 ):
+				sidx = fillMagStatus( self, statBytes, sidx )
+			if maskHasBit( self.featureMask, 3 ):
+				sidx = fillAccelStatus( self, statBytes, sidx )
+			if maskHasBit( self.featureMask, 4 ):
+				sidx = fillGyroStatus( self, statBytes, sidx )
+			#numSrvos = int( statBytes[5:7] )
+			#print("stat numSrvos %i" % numSrvos)
+			#idx = 7
+			#for i in range(numSrvos):
+			#	cmdValArr.append( [ "angAxis"+str(i), statBytes[idx:idx+3] ] )
+			#	idx += 3
 				#print( "a%i %i" % (i, int(cmdValArr[-1][1])) )
-			numCmdsCleared = clearCompletedCommands(self.cmds, cmdValArr)
-			print( "cmdsCleared %i" % numCmdsCleared )
+			#numCmdsCleared = clearCompletedCommands(self.cmds, cmdValArr)
+			#print( "cmdsCleared %i" % numCmdsCleared )
 		except Exception as e:
 			print( "fillValues error %s" % str(e) )
 
@@ -103,6 +136,51 @@ class Device:
 		self.lastImageTime = networkCommon.curMillis()
 
 
+
+#def fillFileStatus():
+
+#def fillDistStatus():
+
+def fillMagStatus(self, statBytes, idx):
+	(
+		self.mx, 
+		self.my,
+		self.mz
+	) = struct.unpack( "<HHH", statBytes[ idx : idx + 6] )
+	idx += 6
+	print( "mx %i my %i mz %i" % (self.mx, self.my, self.mz) )
+	return idx
+
+def fillAccelStatus(self, statBytes, idx):
+	(
+		self.ax, 
+		self.ay,
+		self.az
+	) = struct.unpack( "<HHH", statBytes[ idx : idx + 6] )
+	idx += 6
+	print( "ax %i ay %i az %i" % (self.ax, self.ay, self.az) )
+	return idx
+
+def fillGyroStatus(self, statBytes, idx):
+	(
+		self.gx, 
+		self.gy,
+		self.gz
+	) = struct.unpack( "<HHH", statBytes[ idx : idx + 6] )
+	idx += 6
+	print( "gx %i gy %i gz %i" % (self.gx, self.gy, self.gz) )
+	return idx
+#def fillMicStatus():
+
+#def fillCamStatus():
+
+#def fillDispStatus():
+
+#def fillLightStatus():
+
+#def fillSpeakerStatus():
+
+
 featureBitToString = \
 			['File', 'Dist', 'Mag', 'Accel', 'Gyro', 'Mic', 'Cam', 'Disp', 'Light', 'Speaker' ]
 deviceTypes = [ \
@@ -113,15 +191,15 @@ def maskHasBit(mask, n):
 	return bool(mask & (1 << n))
 
 def maskHasBits(mask, bitArr):
-	for n in len(bitArr):
+	for n in range(len(bitArr)):
 		if not bool(mask & (bool(bitArr[n] << n))):
 			return False
 	return True
 
 def firstMatchingDeviceTypeToMask(mask):
-	for i in len(deviceTypes):
-		devType = deviceTypees[i]
-		if maskHasBits(mask, devType[0:] ):
+	for i in range(len(deviceTypes)):
+		devType = deviceTypes[i]
+		if maskHasBits(mask, devType[1:] ):
 			return i
 	return -1
 
