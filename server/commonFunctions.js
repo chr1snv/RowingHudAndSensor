@@ -35,17 +35,41 @@ function atoir_n( c, n ){
 	return accum;
 }
 
+function sendAllQueuedMessagesOverWebsocket(){
+	for( let i = 0; i < maxQueuedMessages; ++i ){
+		if( stagingLength[i] > 0 ){
+			// 4. Create a zero-copy trimmed window slice spanning from byte 0 to our exact end offset
+			const activePacketView = stagingUint8Arrays[i].subarray(0, stagingLength[i]);
+			socketInstance.send( activePacketView );
+			stagingLength[i] = 0; //mark the buffer as free/avaliable
+		}
+	}
+	
+	for( let i = 0; i < maxQueuedMessages; ++i ){
+		if( stagingCallback[i] != null && stagingCallback[i] != undefined )
+			stagingCallback[i](); //call the callbacks
+		stagingCallback[i] = null;
+	}
+}
+
+function socketCloseAndRetryConnect(){
+	if( socketInstance != null )
+		socketInstance.close();
+	socketInstance = null;
+	setTimeout(function(){sendQueuedMessagesToServerOverWebsocket()},1000+Math.random()*1000);
+}
+
 var webSocketOnMessage = null;
 
 let iotWebsocketSvrUrlParts = document.URL.split(":");
 const iotWebsocketSvrUrl = "wss:" + iotWebsocketSvrUrlParts[1] + ":" + "6100"
 let socketInstance = null;
-let queuedToSendWebsocketMessages = [];
 
 let socketErrorTimeoutHandle = null;
-function sendToServerOverWebsocket( signalingMessage=null ){
-	if( signalingMessage != null )
-		queuedToSendWebsocketMessages.push ( signalingMessage );
+function sendQueuedMessagesToServerOverWebsocket( signalingMessage=null ){ 
+//signalingMessage is a remnant indicating that goal was to use websockets + webRTC
+//(for better performance, though not support for webRTC in all browsers and esp32)
+//so using tcp websocket for compatibility and simplicity
 
 	if( socketInstance == null ){
 		socketInstance = new WebSocket(iotWebsocketSvrUrl);
@@ -53,10 +77,7 @@ function sendToServerOverWebsocket( signalingMessage=null ){
 		
 		socketInstance.onopen = () => {
 			console.log( "socketInstance connection opened");
-			while( queuedToSendWebsocketMessages.length > 0 ){
-				let msgToSend = queuedToSendWebsocketMessages.shift();
-				socketInstance.send( msgToSend );
-			}
+			sendAllQueuedMessagesOverWebsocket();
 		}
 
 
@@ -76,10 +97,15 @@ function sendToServerOverWebsocket( signalingMessage=null ){
 					document.getElementById("networkAuthLink").innerText = '';
 				},
 				5000 );
+			socketCloseAndRetryConnect();
 		}
 
 		socketInstance.onclose = (event) => {
-			console.log("socketInstance.onclose code: " + event.code);
+			console.log("socketInstance.onclose " + 
+						"code: " + event.code +
+						"reason: " + event.reason +
+						"wasClean: " + event.wasClean
+					);
 		}
 
 		socketInstance.onmessage = (event) => {
@@ -130,18 +156,14 @@ function sendToServerOverWebsocket( signalingMessage=null ){
 
 	}else{ //socket already exists
 		if( socketInstance.readyState == socketInstance.OPEN ){
-			while( queuedToSendWebsocketMessages.length > 0 ){
-				let msgToSend = queuedToSendWebsocketMessages.shift();
-				socketInstance.send( msgToSend );
-			}
+			sendAllQueuedMessagesOverWebsocket();
 		}else{
 			console.log( "socketInstance not readyToSend readyState " + socketInstance.readyState );
 			
-			if( socketInstance.readyState > 1 ){
-				socketInstance.close();
-				socketInstance = null;
+			if( socketInstance.readyState != 1 ){
+				socketCloseAndRetryConnect();
 			}
-			setTimeout(function(){sendToServerOverWebsocket()},300);
+			//else if ready state 0 still connecting
 		}
 	}
 
@@ -166,15 +188,17 @@ struct __attribute__((packed)) StatusSectionHeader {
 */
 
 // 1. Allocate the 4096-byte staging buffers ONCE globally
-const MAX_PACKET_SIZE   = 4096;
-const maxQueuedMessages = 10;
-const stagingBuffers 	= new Array(maxQueuedMessages);
-const stagingViews 		= new Array(maxQueuedMessages);
+const MAX_PACKET_SIZE    = 4096;
+const maxQueuedMessages  = 10;
 const stagingUint8Arrays = new Array(maxQueuedMessages);
+const stagingViews 		 = new Array(maxQueuedMessages);
+const stagingLength		 = new Array(maxQueuedMessages);
+const stagingCallback	 = new Array(maxQueuedMessages);
 for( let i = 0; i < maxQueuedMessages; ++i ){
-	stagingBuffers[i]		= new ArrayBuffer(MAX_PACKET_SIZE);
-	stagingViews[i]			= new DataView(stagingBuffers[i]);
-	stagingUint8Arrays[i]	= new Uint8Array(stagingBuffers[i]);
+	stagingUint8Arrays[i]	= new Uint8Array(MAX_PACKET_SIZE);
+	stagingViews[i]			= new DataView(stagingUint8Arrays[i].buffer);
+	stagingLength[i]		= 0;
+	stagingCallback[i]		= null;
 } 
 let stagingIdx = 0;
 
@@ -184,17 +208,27 @@ let thisCliId = -1;
 let pktIdx = 0;
 function sendCmds( datas, callback ) {
 
+	//get the first avaliable queue message buffer
+	let stagingIdx = 0;
+	for(; stagingIdx < maxQueuedMessages; ++stagingIdx )
+		if( stagingLength[stagingIdx] < 1 )
+			break;
+	if( stagingIdx >= maxQueuedMessages ){
+		console.log("no avaliable message buffers");
+		return;
+	}
+	let stagingUint8Array = stagingUint8Arrays[stagingIdx];
 	let stagingView = stagingViews[stagingIdx];
+
+	//fill the message header
 	stagingView.setUint8( 0, 0xAA );
 	stagingView.setUint8( 1, pktIdx );
 	stagingView.setUint16(2, thisCliId, true );
 	stagingView.setUint8( 4, datas.length );
 	stagingView.setUint8( 5, te.encode('c') );
 
+	//fill the message datas / commands
 	let offset = 6;
-
-	let stagingUint8Array = stagingUint8Arrays[stagingIdx];
-
 
 	for( let i = 0; i < datas.length; ++i){
 		let data = datas[i];
@@ -228,15 +262,14 @@ function sendCmds( datas, callback ) {
 	}
 
 
-	// 4. Create a zero-copy trimmed window slice spanning from byte 0 to our exact end offset
-	const activePacketView = stagingUint8Array.subarray(0, offset);
+	stagingLength[stagingIdx] = offset; //mark the buffer as used (and how much is used)
+	stagingCallback[stagingIdx] = callback;
 
-	sendToServerOverWebsocket(activePacketView, callback);
-	
+	sendQueuedMessagesToServerOverWebsocket( );
+
 	pktIdx += 1;
 	if( pktIdx > 255 )
 		pktIdx = 0;
-	stagingIdx += 1;
 }
 
 function sendCmd(datType, dat, datLen=undefined, callBack=undefined){

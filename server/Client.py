@@ -49,7 +49,7 @@ class Client:
 
 	async def send( self, fromDevId, datInfoArr, sendWithoutAuth=False): #, auth ):
 		okToSend = False
-		if self.wSock != None:
+		if self.wSock != None and not self.wSock.closed:
 			if sendWithoutAuth:
 				okToSend = True
 			elif self.login != None: #should it be checked that self.login[LOGIN_AUTHKEY_IDX] == auth: ?

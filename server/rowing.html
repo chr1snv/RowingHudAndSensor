@@ -1,0 +1,89 @@
+<html>
+	<head>
+	<title>Rowing</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<style>
+		body { font-family: Arial; text-align: center; margin:0px auto; padding-top: 30px; color:white; background-color:black;}
+		table { margin-left: auto; margin-right: auto; align:center; }
+		th { border: 1px solid; }
+		#axSrvoAssocTbl th {border:none}
+		td { padding: 8 px; align:center; }
+		.button {
+			background-color: #2f4468;
+			border: none;
+			color: white;
+			padding: 10px 20px;
+			text-align: center;
+			text-decoration: none;
+			display: inline-block;
+			font-size: 18px;
+			margin: 6px 3px;
+			cursor: pointer;
+			/*-webkit-touch-callout: none;
+			-webkit-user-select: none;
+			-khtml-user-select: none;
+			-moz-user-select: none;
+			-ms-user-select: none;
+			user-select: none;*/
+			-webkit-tap-highlight-color: rgba(0,0,0,0);
+		}
+		img {  width: auto ;
+			max-width: 100% ;
+			height: auto ; 
+		}
+	</style>
+	<script src="commonFunctions.js"></script>
+	</head>
+	<body>
+	<table style="width:400px">
+		<tr>
+			<td><button onclick="getFile(finishUrlGoto, 'devSelection.html')" >< All devices</button></td>
+			<td><button onclick="logout()">Log out</button></td>
+			<td><h4 style="margin-bottom:0px;">Packets until auto-logout</h4></td><td><p id="remainingPackets">?</p></td>
+		</tr>
+	</table>
+	<h1>Boats</h1>
+	<table>
+		<tr><td>New Boat Name</td>						<td><input id='newBoatName' /></td></tr>
+		<tr><td>Length(m)</td>							<td><input id='newBoatLength' style="width:90px;"/></td>
+		<tr><td>Rigger Dist From Centerline(m)</td>		<td><input id='newBoatRiggerDistFromCenterline' style="width:90px;"/></td>
+		<tr><td>Stroke side</td>						<td><select id='newBoatStrokeSide' /><option>Starboard</option><option>Port</option></select></td></tr>
+		<tr><td>Oars Per Seat</td>						<td><select id="newBoatOarsPerSeat" style="width:90px;"><option>1</option><option>2</option></select></td></tr>
+		<tr><td>Oar Length(m)</td>						<td><input id='newBoatOarLength' style="width:90px;"/></td></tr>
+		<tr><td>Collar Dist From Handle End(m)</td>		<td><input id='newBoatCollarDistFromHandleEnd' style="width:90px;"/></td></tr>
+		<tr><td>Num Seats</td>							<td><select id="newBoatNumSeats" style="width:90px;">
+															<option>1</option><option>2</option><option>3</option>
+															<option>4</option><option>5</option><option>6</option>
+															<option>7</option><option>8</option><option>9</option>
+															<option>10</option>
+															</select></td></tr>
+		<tr><td>Stroke Rigger Dist From Stern(m)</td>	<td><input id='newBoatStrokeRiggerDistFromStern' style="width:90px;"/></td></tr>
+
+		<tr><td><button onclick="createBoat( )" >Create Boat</button></td></tr>
+		</tr>
+	</table>
+
+	<script>
+		newBoatNameElm			= document.getElementById( "newBoatName" );
+		newBoatLengthElm		= document.getElementById( "newBoatLength" );
+		newBoatRigDstElm		= document.getElementById( "newBoatRiggerDistFromCenterline" );
+		newBoatStrkSideElm		= document.getElementById( "newBoatStrokeSide" );
+		newBoatOarsPerSeatElm	= document.getElementById( "newBoatOarsPerSeat" );
+		newBoatOarLenElm		= document.getElementById( "newBoatOarLength" );
+		newBoatColDistElm		= document.getElementById( "newBoatCollarDistFromHandleEnd" );
+		newBoatNumSeatsElm		= document.getElementById( "newBoatNumSeats" );
+		newBoatStrkDstStrnElm	= document.getElementById( "newBoatStrokeRiggerDistFromStern" );
+		function createBoat(  ){
+			console.log( newBoatNameElm.value + ":" + newBoatLengthElm.value + ":" +
+			newBoatRigDstElm.value + ":" + newBoatStrkSideElm.value + ":" + newBoatOarsPerSeatElm.value + ":" +
+			newBoatOarLenElm.value + ":" + newBoatColDistElm.value + ":" + newBoatNumSeatsElm.value + ":" +
+			newBoatStrkDstStrnElm.value );
+			
+			
+
+			//sendCmds( [ ['createBoat', newBoatNameElm.value], ['newBoatLength', newBoatLengthElm.value], ['loginPass', password ] ] );
+		}
+	</script>
+
+	<h1>Devices</h1>
+	<table>

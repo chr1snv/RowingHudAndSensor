@@ -27,6 +27,8 @@ class Device:
 
 		self.featureMask = 0
 
+		self.devType = -1
+
 
 		self.wSock = None
 
@@ -42,24 +44,33 @@ class Device:
 		self.postStatus = b''
 		self.lastStatusTime = networkCommon.curMillis()
 
-		self.alarmArmed        = ""
-		self.magAX             = ""
-		self.magAY             = ""
-		self.magAZ             = ""
+		self.alarmArmed			= ""
+		self.magAX				= ""
+		self.magAY				= ""
+		self.magAZ				= ""
 
-		self.numServos         = 0
-		self.servoAngles       = []
+		self.numServos			= 0
+		self.servoAngles		= []
 
-		self.staRssi           = ""
-		self.lastTemperature   = ""
-		self.magX              = ""
-		self.magY              = ""
-		self.magZ              = ""
+		self.staRssi			= ""
+		self.lastTemperature	= ""
 
-		self.magHeading        = ""
-		self.magAlarmDiff      = ""
-		self.magAlarmTriggered = ""
-		self.alarmOutput       = ""
+		self.mx					= 0
+		self.my					= 0
+		self.mz					= 0
+
+		self.ax					= 0
+		self.ay					= 0
+		self.az					= 0
+
+		self.gx					= 0
+		self.gy					= 0
+		self.gz					= 0
+
+		self.magHeading			= ""
+		self.magAlarmDiff		= ""
+		self.magAlarmTriggered	= ""
+		self.alarmOutput		= ""
 
 
 

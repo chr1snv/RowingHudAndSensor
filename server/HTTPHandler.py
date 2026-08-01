@@ -126,6 +126,36 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					print( " camControl devId : %i cliId : %i  cli.devId : %i" % (Client.clients[cliId].devId, Client.clients[cliId].cliId, Client.clients[cliId].devId) )
 					return
 
+				elif parts[1] == "rowing.html": #device control page
+					#self.path has /index.htm
+					#devId = int(parts[3])
+					#cliId = int(parts[5])
+					#client.fSvrId = -1
+					#client.devId = devId #switch the client to controlling device
+					#dev = Device.GetOrAllocateDevice( devId )
+					#dev.controlingCliId = cliId
+					self.replyWithStartFile( "rowing.html" )
+					#print("writing cliId %i" % (cliId))
+					#self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
+					#print("writing devId %i" % (devId))
+					#self.wfile.write(("<h2 id=\"devId\">" + str(devId) + "</h2>").encode('utf-8'))
+					print("writing devices to rowing page" )
+					output = io.StringIO()
+					for devId, dev in Device.devices.items():
+						devIdStr = str(dev.devId)
+						output.write('<tr>')
+						output.write('<td><button onclick="addDeviceToBoat( \'' + devIdStr + '\' )">' + \
+									devIdStr + \
+									" : " + str(dev.description) + \
+									" : " + str(Device.deviceTypes[dev.devType][0]) + '</button></td>')
+						output.write('</tr>')
+						print( "device " + devIdStr )
+					self.wfile.write(output.getvalue().encode('utf-8'))
+					self.replyWithEndFile( "rowingEnd.html" )
+					print("finishing writing rowing.html")
+					#print( " rowing devId : %i cliId : %i  cli.devId : %i" % (Client.clients[cliId].devId, Client.clients[cliId].cliId, Client.clients[cliId].devId) )
+					return
+
 				elif parts[1] == "devSelection.html": #the index / device selection / overview page
 					self.send_response(200)
 					self.send_header('Content-type','text/html')
@@ -160,7 +190,10 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					for devId, dev in Device.devices.items():
 						devIdStr = str(dev.devId)
 						output.write('<tr>')
-						output.write('<td><button onclick="getFile(finishUrlGoto,\'camControl.html\', [[\'devId\', ' + devIdStr + '],[\'cliId\', ' + cliIdStr + ']])">' + devIdStr + " : " + str(dev.description) + '</button></td>')
+						output.write('<td><button onclick="getFile(finishUrlGoto,\'camControl.html\', [[\'devId\', ' + devIdStr + '],[\'cliId\', ' + cliIdStr + ']])">' + \
+									devIdStr + \
+									" : " + str(dev.description) + \
+									" : " + str(Device.deviceTypes[dev.devType][0]) + '</button></td>')
 						output.write('</tr>')
 					print("dev selec 2")
 					output.write("<h1>FILE SERVERS</h1>")
