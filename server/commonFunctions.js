@@ -245,6 +245,9 @@ function sendCmds( datas, callback ) {
 				dat = String( dat );
 			datLen = dat.length;
 		}
+		let dataAlreadyEncoded = false;
+		if( data.length > 3 && data[3] == true )
+			dataAlreadyEncoded = true;
 
 		let encDatType = te.encode( datType.padEnd(11, '\0') );
 
@@ -254,7 +257,9 @@ function sendCmds( datas, callback ) {
 		stagingView.setUint16( offset, datLen );
 		offset += 2;
 
-		let encDat = te.encode(dat);
+		let encDat = dat;
+		if( !dataAlreadyEncoded )
+			encDat = te.encode(dat);
 		stagingUint8Array.set( encDat, offset );
 		offset += encDat.length;
 
@@ -272,9 +277,9 @@ function sendCmds( datas, callback ) {
 		pktIdx = 0;
 }
 
-function sendCmd(datType, dat, datLen=undefined, callBack=undefined){
+function sendCmd(datType, dat, datLen=undefined, datAlreadyEncoded=false, callBack=undefined){
 	key = localStorage.getItem('authKey');
-	sendCmds([['auth', key, key.length],[datType, dat, datLen]], callBack);
+	sendCmds([['auth', key, key.length],[datType, dat, datLen, datAlreadyEncoded]], callBack);
 }
 
 

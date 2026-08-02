@@ -1,6 +1,8 @@
 import socket
 import networkCommon, Device, Client, Accounts
 
+import Boat
+
 
 import struct
 
@@ -160,6 +162,14 @@ async def websocketHandler(websocket):
 							key = datStr
 							if key == client.login[Client.LOGIN_AUTHKEY_IDX]: #only allow user to logout themselves
 								await Client.logoutClient(client)
+
+
+						if datType.startswith(b'BoatNew'): #request to create a new boat system/structure/machine
+							print("create new boat")
+							(boatName) = struct.unpack( "<32s", datStr[:32] )
+							newBoat = Boat.GetOrAllocateBoat( boatName )
+							Boat.fillNewBoatVals( newBoat, datStr )
+							
 						#device = None
 						print("client.devId %i client.fSvrId %i" % (client.devId, client.fSvrId) )
 						if not authDCmdRequested and client.devId >= 0:

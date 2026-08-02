@@ -78,8 +78,50 @@
 			newBoatRigDstElm.value + ":" + newBoatStrkSideElm.value + ":" + newBoatOarsPerSeatElm.value + ":" +
 			newBoatOarLenElm.value + ":" + newBoatColDistElm.value + ":" + newBoatNumSeatsElm.value + ":" +
 			newBoatStrkDstStrnElm.value );
-			
-			
+
+
+			//get the first avaliable queue message buffer
+			const MAX_NEW_BOAT_DATA_SIZE    = 2048;
+			let boatMsgUint8Array			= new Uint8Array(MAX_NEW_BOAT_DATA_SIZE);
+			let boatMsgView					= new DataView(boatMsgUint8Array.buffer);
+			let boatMsgLength				= 0;
+
+
+			//fill the BoatNew message data
+			let offset = 0;
+
+			let encDatType = te.encode( newBoatNameElm.value.padEnd(32, '\0') );
+			boatMsgUint8Array.set(encDatType, offset);
+			offset += 32;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatLengthElm.value) || 0.0, true);
+			offset += 4;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatRigDstElm.value) || 0.0, true);
+			offset += 4;
+
+			boatMsgView.setUint8( offset, newBoatStrkSideElm.value == "Starboard" );
+			offset += 1;
+
+			boatMsgView.setUint8( offset, newBoatOarsPerSeatElm.value );
+			offset += 1;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatOarLenElm.value) || 0.0, true);
+			offset += 4;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatColDistElm.value) || 0.0, true);
+			offset += 4;
+
+			boatMsgView.setUint8( offset, newBoatNumSeatsElm.value );
+			offset += 1;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatStrkDstStrnElm.value) || 0.0, true);
+			offset += 4;
+
+
+			boatMsgLength = offset; //mark the buffer as used (and how much is used)
+
+			sendCmd( 'BoatNew', boatMsgUint8Array, boatMsgLength, true );
 
 			//sendCmds( [ ['createBoat', newBoatNameElm.value], ['newBoatLength', newBoatLengthElm.value], ['loginPass', password ] ] );
 		}
