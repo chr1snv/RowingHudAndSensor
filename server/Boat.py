@@ -10,8 +10,8 @@ class Boat:
 	def __init__(self):
 		self.name = ""
 
-		self.devices = []
-		
+		self.devices = {}
+
 		self.boatName				= ""	#								(32 chars)
 		self.boatLength				= 1		#meters 						(float32)
 		self.RigDstFromCntrLineElm 	= 1 	#meters							(float32)
@@ -21,15 +21,19 @@ class Boat:
 		self.CollarDistFromHndlEnd	= 1		#meters							(float32)
 		self.NumSeats				= 1		#1-8							(uint8)
 		self.StrkDstStrn			= 5		#meters							(float32)
-	
+
+def assignDeviceToBoat( boat, datBytes ):
+	#dev, role
+	#boat.devices[role] = dev
+	return true
 
 def fillNewBoatVals( newBoat, valBytes ):
 	newBoat.createTime = networkCommon.curMillis()
 	try:
 		sidx = 0
 		cmdValArr = []
-		
-		
+
+
 		#32+4+4+1+1+4+4+1+4 => 55
 		print(valBytes)
 		(
@@ -47,9 +51,9 @@ def fillNewBoatVals( newBoat, valBytes ):
 		print( "boatName %s boatLength %f RigDstFromCntrLineElm %f StrokeSide %s OarsPerSeat %i OarLen %f CollarDistFromHndlEnd %f NumSeats %i StrkDstStrn %f" % 
 			(newBoat.boatName, newBoat.boatLength, newBoat.RigDstFromCntrLineElm, newBoat.StrokeSide, newBoat.OarsPerSeat, newBoat.OarLen, newBoat.CollarDistFromHndlEnd,
 			newBoat.NumSeats, newBoat.StrkDstStrn) )
-		
-		
-		
+
+
+
 	except Exception as e:
 		print( "fillValues error %s" % str(e) )
 

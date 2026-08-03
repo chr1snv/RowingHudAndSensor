@@ -6,6 +6,8 @@ import re, os, io
 
 from datetime import datetime
 
+from http.cookies import SimpleCookie
+
 class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 	def __init__(self, request, client_address, server):
 		#enable http 1.1 to avoid tls and tcp setup time per request by 
@@ -72,9 +74,23 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 		try:
 			#print("get path " + self.path )
 			parts = re.split(r"[/?&=]", self.path)
+			
 			pktAuth = ''
 			getKeyValid = False
-			if len(parts) > 2:
+			
+			
+			# 1. Look for the cookie in the incoming HTTP request headers
+			if "Cookie" in self.headers:
+				cookie = SimpleCookie(self.headers["Cookie"])
+				if "auth_key" in cookie:
+					cookie_key = cookie["auth_key"].value.encode('utf-8')
+					
+					# Validate the token
+					(client, pktAuth) = Accounts.ClientAndPktAuthFromGetKey(cookie_key)
+					if pktAuth:
+						getKeyValid = True
+			
+			elif len(parts) > 2:
 				getKey = parts[-1].encode('utf-8')
 				(client,pktAuth) = Accounts.ClientAndPktAuthFromGetKey( getKey )
 				getKeyValid = len(pktAuth) > 0

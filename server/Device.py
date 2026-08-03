@@ -199,15 +199,18 @@ deviceTypes = [ \
 [ 'IMU_Pod',	0,	     0,		1,		1,		1,		0,		0,		0,		0,		0]  ]
 
 def maskHasBit(mask, n):
+	#used to check if a mask has a feature
 	return bool(mask & (1 << n))
 
 def maskHasBits(mask, bitArr):
+	#helper function for firstMatchingDeviceTypeToMask (compares feature masks )
 	for n in range(len(bitArr)):
 		if not bool(mask & (bool(bitArr[n] << n))):
 			return False
 	return True
 
 def firstMatchingDeviceTypeToMask(mask):
+	#find the type of the device from the feature mask
 	for i in range(len(deviceTypes)):
 		devType = deviceTypes[i]
 		if maskHasBits(mask, devType[1:] ):
@@ -215,7 +218,16 @@ def firstMatchingDeviceTypeToMask(mask):
 	return -1
 
 
+
+
+
+
+
+
+
+
 def GetCommandListBytes(cmds):
+	#get queued commands to send to device
 	#output = io.BytesIO()
 	numCmdsToSend = min(9, len(cmds))
 	print( "numCmds in getList %i" % numCmdsToSend )
@@ -304,6 +316,8 @@ def clearCompletedCommands(cmds, cmdValArr):
 	
 	#return a count of how many cleared (to know if things changed)
 	return numCmdsCleared
+
+
 
 
 devices = {}

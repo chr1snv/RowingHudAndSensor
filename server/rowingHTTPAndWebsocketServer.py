@@ -80,7 +80,7 @@ async def startWebsocketServer():
 
 	print( "serving websocket at %s port %i" % (networkCommon.svrIp, websocketPort) )
 	#https://stackoverflow.com/questions/67810506/websockets-exceptions-connectionclosederror-code-1011-unexpected-error-no
-	async with serve(WebsocketHandler.websocketHandler, networkCommon.svrIp, websocketPort, ping_interval=30, ping_timeout=30, ssl=ssl_context) as ws:
+	async with serve(WebsocketHandler.websocketHandler, networkCommon.svrIp, websocketPort, ping_interval=5, ping_timeout=1, ssl=ssl_context, open_timeout=1) as ws:
 		print('ws before await stop')
 		await stop
 		ws.close()

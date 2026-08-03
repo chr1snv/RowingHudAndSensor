@@ -321,3 +321,39 @@ function logout(){
 
 
 
+//things to handle browser back button presses
+function pageBackKeyObtained(key){
+	//sessionStorage.setItem('auth_key', key);
+	
+	// Save to an in-memory cookie (No Max-Age/Expires = RAM only!)
+	document.cookie = `auth_key=${key}; Path=/; SameSite=Strict; Secure`;
+
+
+	//const stateObject = { auth_key: key };
+	//window.history.replaceState(stateObject, document.title, window.location.pathname + "?key=" + key);
+}
+
+window.onload = function(event){
+	//clear the used auth key from the url bar
+	window.history.replaceState( {}, document.title, window.location.pathname )
+
+	let appendInfo = [ pageBackKeyObtained, ];
+	pendingFileRequests.push( appendInfo );
+	sendCmd('getKey');
+}
+
+
+
+
+window.addEventListener('popstate', function(event) {
+	const savedKey = sessionStorage.getItem('auth_key');
+	if (savedKey) {
+		// Silently reload or redirect to the previous view using the saved token
+		window.location.href = `/devSelection.html?${savedKey}`;
+	} else {
+		// Fallback to login if no token exists
+		window.location.href = '/login.html';
+	}
+});
+
+
