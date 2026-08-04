@@ -32,9 +32,10 @@
 			height: auto ; 
 		}
 	</style>
-	<script src="commonFunctions.js"></script>
 	</head>
 	<body>
+	<p id="networkAuthText"></p>
+	<a id="networkAuthLink"></a>
 	<table style="width:400px">
 		<tr>
 			<td><button onclick="getFile(finishUrlGoto, 'devSelection.html')" >< All devices</button></td>
@@ -42,7 +43,8 @@
 			<td><h4 style="margin-bottom:0px;">Packets until auto-logout</h4></td><td><p id="remainingPackets">?</p></td>
 		</tr>
 	</table>
-	<h1>Boats</h1>
+	<h1>Avaliable Boats</h1>
+	<h2>Create New Boat</h2>
 	<table>
 		<tr><td>New Boat Name</td>						<td><input id='newBoatName' /></td></tr>
 		<tr><td>Length(m)</td>							<td><input id='newBoatLength' style="width:90px;"/></td>
@@ -62,70 +64,50 @@
 		<tr><td><button onclick="createBoat( )" >Create Boat</button></td></tr>
 		</tr>
 	</table>
+	<h2>Selected Boat</h2>
+	<table>
+		<tr>
+			<td>Name</td>
+			<td>Length</td>
+			<td>Stroke Side</td>
+			<td>Num Seats</td>
+		</tr>
+		<tr>
+			<td id="selBoatName">Name</td>
+			<td id="selBoatLen">Length</td>
+			<td id="selBoatStrkSd">Stroke Side</td>
+			<td id="selBoatNumSeats">Num Seats</td>
+		</tr>
+	</table>
+	
 
-	<script>
-		newBoatNameElm			= document.getElementById( "newBoatName" );
-		newBoatLengthElm		= document.getElementById( "newBoatLength" );
-		newBoatRigDstElm		= document.getElementById( "newBoatRiggerDistFromCenterline" );
-		newBoatStrkSideElm		= document.getElementById( "newBoatStrokeSide" );
-		newBoatOarsPerSeatElm	= document.getElementById( "newBoatOarsPerSeat" );
-		newBoatOarLenElm		= document.getElementById( "newBoatOarLength" );
-		newBoatColDistElm		= document.getElementById( "newBoatCollarDistFromHandleEnd" );
-		newBoatNumSeatsElm		= document.getElementById( "newBoatNumSeats" );
-		newBoatStrkDstStrnElm	= document.getElementById( "newBoatStrokeRiggerDistFromStern" );
-		function createBoat(  ){
-			console.log( newBoatNameElm.value + ":" + newBoatLengthElm.value + ":" +
-			newBoatRigDstElm.value + ":" + newBoatStrkSideElm.value + ":" + newBoatOarsPerSeatElm.value + ":" +
-			newBoatOarLenElm.value + ":" + newBoatColDistElm.value + ":" + newBoatNumSeatsElm.value + ":" +
-			newBoatStrkDstStrnElm.value );
-
-
-			//get the first avaliable queue message buffer
-			const MAX_NEW_BOAT_DATA_SIZE    = 2048;
-			let boatMsgUint8Array			= new Uint8Array(MAX_NEW_BOAT_DATA_SIZE);
-			let boatMsgView					= new DataView(boatMsgUint8Array.buffer);
-			let boatMsgLength				= 0;
-
-
-			//fill the BoatNew message data
-			let offset = 0;
-
-			let encDatType = te.encode( newBoatNameElm.value.padEnd(32, '\0') );
-			boatMsgUint8Array.set(encDatType, offset);
-			offset += 32;
-
-			boatMsgView.setFloat32( offset, parseFloat(newBoatLengthElm.value) || 0.0, true);
-			offset += 4;
-
-			boatMsgView.setFloat32( offset, parseFloat(newBoatRigDstElm.value) || 0.0, true);
-			offset += 4;
-
-			boatMsgView.setUint8( offset, newBoatStrkSideElm.value == "Starboard" );
-			offset += 1;
-
-			boatMsgView.setUint8( offset, newBoatOarsPerSeatElm.value );
-			offset += 1;
-
-			boatMsgView.setFloat32( offset, parseFloat(newBoatOarLenElm.value) || 0.0, true);
-			offset += 4;
-
-			boatMsgView.setFloat32( offset, parseFloat(newBoatColDistElm.value) || 0.0, true);
-			offset += 4;
-
-			boatMsgView.setUint8( offset, newBoatNumSeatsElm.value );
-			offset += 1;
-
-			boatMsgView.setFloat32( offset, parseFloat(newBoatStrkDstStrnElm.value) || 0.0, true);
-			offset += 4;
-
-
-			boatMsgLength = offset; //mark the buffer as used (and how much is used)
-
-			sendCmd( 'BoatNew', boatMsgUint8Array, boatMsgLength, true );
-
-			//sendCmds( [ ['createBoat', newBoatNameElm.value], ['newBoatLength', newBoatLengthElm.value], ['loginPass', password ] ] );
-		}
-	</script>
-
-	<h1>Devices</h1>
+	<h1>Avaliable Devices</h1>
+	<table>
+		<tr>
+			<td>As Type</td>
+			<td><select id='devAddAsTyp'>
+				<option>HUD</option>
+				<option>STBOar</option>
+				<option>PORTOar</option>
+				</select>
+			</td>
+		</tr>
+		<tr>
+			<td>At Position</td>
+			<td><select id='devAddAtSeat'>
+				<option>Coach</option>
+				<option>Hull</option>
+				<option>Coxan</option>
+				<option>1</option>
+				<option>2</option>
+				<option>3</option>
+				<option>4</option>
+				<option>5</option>
+				<option>6</option>
+				<option>7</option>
+				<option>8</option>
+				</select>
+			</td>
+		</tr>
+	</table>
 	<table>

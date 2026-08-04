@@ -1,3 +1,106 @@
 	</table>
+	<script src="commonFunctions.js"></script>
+	<script src="HavenTech/HavenInclude.js"></script>
+	<canvas id="frayenCanvas" width=640px; height=480px; style="width:640px; height:480px;"></canvas>
+
+	<script>
+		newBoatNameElm			= document.getElementById( "newBoatName" );
+		newBoatLengthElm		= document.getElementById( "newBoatLength" );
+		newBoatRigDstElm		= document.getElementById( "newBoatRiggerDistFromCenterline" );
+		newBoatStrkSideElm		= document.getElementById( "newBoatStrokeSide" );
+		newBoatOarsPerSeatElm	= document.getElementById( "newBoatOarsPerSeat" );
+		newBoatOarLenElm		= document.getElementById( "newBoatOarLength" );
+		newBoatColDistElm		= document.getElementById( "newBoatCollarDistFromHandleEnd" );
+		newBoatNumSeatsElm		= document.getElementById( "newBoatNumSeats" );
+		newBoatStrkDstStrnElm	= document.getElementById( "newBoatStrokeRiggerDistFromStern" );
+		
+		//allocate message Buffers
+		const MAX_NEW_BOAT_DATA_SIZE    = 2048;
+		let boatMsgUint8Array			= new Uint8Array(MAX_NEW_BOAT_DATA_SIZE);
+		let boatMsgView					= new DataView(boatMsgUint8Array.buffer);
+		let boatMsgLength				= 0;
+		
+		function createBoat(  ){
+			console.log( newBoatNameElm.value + ":" + newBoatLengthElm.value + ":" +
+			newBoatRigDstElm.value + ":" + newBoatStrkSideElm.value + ":" + newBoatOarsPerSeatElm.value + ":" +
+			newBoatOarLenElm.value + ":" + newBoatColDistElm.value + ":" + newBoatNumSeatsElm.value + ":" +
+			newBoatStrkDstStrnElm.value );
+
+
+
+			//fill the BoatNew message data
+			let offset = 0;
+
+			let encDatType = te.encode( newBoatNameElm.value.padEnd(32, '\0') );
+			boatMsgUint8Array.set(encDatType, offset);
+			offset += 32;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatLengthElm.value) || 0.0, true);
+			offset += 4;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatRigDstElm.value) || 0.0, true);
+			offset += 4;
+
+			boatMsgView.setUint8( offset, newBoatStrkSideElm.value == "Starboard" );
+			offset += 1;
+
+			boatMsgView.setUint8( offset, newBoatOarsPerSeatElm.value );
+			offset += 1;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatOarLenElm.value) || 0.0, true);
+			offset += 4;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatColDistElm.value) || 0.0, true);
+			offset += 4;
+
+			boatMsgView.setUint8( offset, newBoatNumSeatsElm.value );
+			offset += 1;
+
+			boatMsgView.setFloat32( offset, parseFloat(newBoatStrkDstStrnElm.value) || 0.0, true);
+			offset += 4;
+
+
+			boatMsgLength = offset; //mark the buffer as used (and how much is used)
+
+			sendCmd( 'BoatNew', boatMsgUint8Array, boatMsgLength, true );
+
+		}
+
+		const boatDevTypes = Object.freeze({
+			HUD		:0,
+			STBOar	:1,
+			PORTOar	:2
+		});
+
+		const devLocationTypes = Object.freeze({
+			Coach	:0,
+			Hull	:1,
+			Coxan	:2,
+			1		:3,
+			2		:4,
+			3		:5,
+			4		:6,
+			5		:7,
+			6		:8,
+			7		:9,
+			8		:10
+		});
+
+		const devAddAsTypElm = document.getElementById( 'devAddAsTyp' );
+		const devAddAtSeatElm = document.getElementById( 'devAddAtSeat' );
+		function addDeviceToBoat( devId ){
+			
+			let offset = 0;
+			boatMsgView.setUint8( offset, boatDevTypes		[ devAddAsTypElm.value ]  );
+			offset += 1;
+			boatMsgView.setUint8( offset, devLocationTypes	[ devAddAtSeatElm.value ] );
+			offset += 1;
+			boatMsgLength = offset;
+
+			sendCmd( 'BoatAddDev', boatMsgUint8Array, boatMsgLength, true );
+		}
+		
+	</script>
+	
 	</body>
 </html>

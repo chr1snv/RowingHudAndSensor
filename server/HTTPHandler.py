@@ -2,6 +2,8 @@ import http.server
 
 import Accounts, Client, Device, FileServer
 
+import Boat
+
 import re, os, io
 
 from datetime import datetime
@@ -155,15 +157,24 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					#self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
 					#print("writing devId %i" % (devId))
 					#self.wfile.write(("<h2 id=\"devId\">" + str(devId) + "</h2>").encode('utf-8'))
-					print("writing devices to rowing page" )
 					output = io.StringIO()
+					print( "writing boats to rowing page" )
+					for boatId, boat in Boat.boatsById.items():
+						boatIdStr = str(boat.boatId)
+						output.write('<tr>')
+						output.write('<td><button onclick="selectBoat( \'' + boatIdStr + '\' )">' + \
+									boatIdStr + \
+									" : " + str(boat.name) + '</button></td></tr>' )
+					print( "writing devices to rowing page" )
+					
 					for devId, dev in Device.devices.items():
 						devIdStr = str(dev.devId)
 						output.write('<tr>')
 						output.write('<td><button onclick="addDeviceToBoat( \'' + devIdStr + '\' )">' + \
 									devIdStr + \
 									" : " + str(dev.description) + \
-									" : " + str(Device.deviceTypes[dev.devType][0]) + '</button></td>')
+									" : " + str(Device.deviceTypes[dev.devType][0]) + '</button>'+ \
+									'</td>')
 						output.write('</tr>')
 						print( "device " + devIdStr )
 					self.wfile.write(output.getvalue().encode('utf-8'))

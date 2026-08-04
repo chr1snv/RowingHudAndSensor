@@ -292,7 +292,7 @@ function finishUrlGoto(key, pendingUrlRequest){
 			getStr += "&" + additionalArgs[i][0] + "=" + additionalArgs[i][1];
 		}
 	}
-	document.location.href = getStr + "?" + key;
+	document.location.href = getStr;// + "?" + key;
 	pendingUrlRequest = [];
 }
 
@@ -344,7 +344,7 @@ window.onload = function(event){
 
 
 
-
+/*
 window.addEventListener('popstate', function(event) {
 	const savedKey = sessionStorage.getItem('auth_key');
 	if (savedKey) {
@@ -355,5 +355,5 @@ window.addEventListener('popstate', function(event) {
 		window.location.href = '/login.html';
 	}
 });
-
+*/
 
