@@ -11,6 +11,7 @@ class Boat:
 		self.name = ""
 
 		self.devices = {}
+		self.numDevices = 0
 
 		self.boatName				= ""	#								(32 chars)
 		self.boatLength				= 1		#meters 						(float32)
@@ -22,10 +23,49 @@ class Boat:
 		self.NumSeats				= 1		#1-8							(uint8)
 		self.StrkDstStrn			= 5		#meters							(float32)
 
-def assignDeviceToBoat( boat, datBytes ):
+
+"""
+boatDevTypes = {
+	HUD		:0,
+	STBOar	:1,
+	PORTOar	:2
+}
+
+
+const devLocationTypes = Object.freeze({
+	Coach	:0,
+	Hull	:1,
+	Coxan	:2,
+	1		:3,
+	2		:4,
+	3		:5,
+	4		:6,
+	5		:7,
+	6		:8,
+	7		:9,
+	8		:10
+});
+"""
+
+
+
+def assignDeviceToBoat( boatId, datBytes ):
+	selBoat = boatsById[boatId]
 	#dev, role
 	#boat.devices[role] = dev
-	return true
+	(
+		devId,
+		devRole,
+		devLocation
+	) = struct.unpack( "<IBB", datBytes )
+	
+	if not (devLocation in selBoat.devices):
+		selBoat.devices[devLocation] = {}
+	devLocDevices = selBoat.devices[devLocation]
+	#if not (devRole in devLocDevices):
+	devLocDevices[devRole] = devId
+	selBoat.numDevices += 1
+	
 
 def fillNewBoatVals( newBoat, valBytes ):
 	newBoat.createTime = networkCommon.curMillis()

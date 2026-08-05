@@ -4,6 +4,10 @@
 	<canvas id="frayenCanvas" width=640px; height=480px; style="width:640px; height:480px;"></canvas>
 
 	<script>
+		//create/new boat input elements
+		newBoatDivElm			= document.getElementById( "createNewBoatDiv" );
+		createNewBoatHdgTextElm = document.getElementById( "createNewBoatHdgText" );
+		
 		newBoatNameElm			= document.getElementById( "newBoatName" );
 		newBoatLengthElm		= document.getElementById( "newBoatLength" );
 		newBoatRigDstElm		= document.getElementById( "newBoatRiggerDistFromCenterline" );
@@ -13,13 +17,31 @@
 		newBoatColDistElm		= document.getElementById( "newBoatCollarDistFromHandleEnd" );
 		newBoatNumSeatsElm		= document.getElementById( "newBoatNumSeats" );
 		newBoatStrkDstStrnElm	= document.getElementById( "newBoatStrokeRiggerDistFromStern" );
-		
+
+		//selected boat display elements
+		selBoatNameElm			= document.getElementById( "selBoatName" );
+		selBoatLenElm			= document.getElementById( "selBoatLen" );
+		selBoatStrkSdElm		= document.getElementById( "selBoatStrkSd" );
+		selBoatNumSeatsElm		= document.getElementById( "selBoatNumSeats" );
+
+
 		//allocate message Buffers
 		const MAX_NEW_BOAT_DATA_SIZE    = 2048;
 		let boatMsgUint8Array			= new Uint8Array(MAX_NEW_BOAT_DATA_SIZE);
 		let boatMsgView					= new DataView(boatMsgUint8Array.buffer);
 		let boatMsgLength				= 0;
-		
+
+
+		function showHideCreateNewBoat(){
+			if( newBoatDivElm.style.display == "none" ){
+				newBoatDivElm.style.display="";
+				createNewBoatHdgTextElm.innerHTML = "V Create New Boat";
+			}else{
+				newBoatDivElm.style.display="none";
+				createNewBoatHdgTextElm.innerHTML = "> Create New Boat";
+			}
+		}
+
 		function createBoat(  ){
 			console.log( newBoatNameElm.value + ":" + newBoatLengthElm.value + ":" +
 			newBoatRigDstElm.value + ":" + newBoatStrkSideElm.value + ":" + newBoatOarsPerSeatElm.value + ":" +
@@ -31,8 +53,8 @@
 			//fill the BoatNew message data
 			let offset = 0;
 
-			let encDatType = te.encode( newBoatNameElm.value.padEnd(32, '\0') );
-			boatMsgUint8Array.set(encDatType, offset);
+			let encBoatName = te.encode( newBoatNameElm.value.padEnd(32, '\0') );
+			boatMsgUint8Array.set(encBoatName, offset);
 			offset += 32;
 
 			boatMsgView.setFloat32( offset, parseFloat(newBoatLengthElm.value) || 0.0, true);
@@ -64,15 +86,90 @@
 
 			sendCmd( 'BoatNew', boatMsgUint8Array, boatMsgLength, true );
 
+
 		}
 
-		const boatDevTypes = Object.freeze({
+
+		function handleWebSockDataType(datType, dat, datLen){
+			if( datType.startsWith("BoatSelBoat") ){
+				handleBoatSelectedSvrResp( dat );
+			}
+		}
+
+		function selectBoat( boatId ){
+
+			let offset = 0;
+			boatMsgView.setUint32( offset, boatId, true );
+			offset += 4;
+
+			boatMsgLength = offset;
+
+			sendCmd( 'BoatSelBoat', boatMsgUint8Array, boatMsgLength, true );
+		}
+		
+		function createSelBoatDevTd( newTr, id, devCellStyle ){
+			let newTd = document.createElement( "td" );
+			newTd.id = id;
+			newTd.style = devCellStyle;
+			newTr.appendChild( newTd );
+			return newTd;
+		}
+		
+		let selBoatDevsTableElm = document.getElementById( "selBoatDevs" );
+		function handleBoatSelectedSvrResp(msgBytes){
+			let v = new DataView(msgBytes);
+
+			//read values from the message and fill the information indication for the selected boat
+			let offset = 0;
+			selBoatNameElm.innerText 		= td.decode(msgBytes.slice(0,32));
+			offset += 32;
+			offset += 4; //skip over boat id
+			selBoatLenElm.innerText			= v.getFloat32(offset, true);
+			offset += 4;
+			selBoatStrkSdElm.innerText		= v.getUint8(offset) ? "Starboard" : "Port";
+			offset += 1;
+			selBoatNumSeatsElm.innerText 	= v.getUint8(offset);
+			offset += 1;
+			let numDevices = v.getUint8(offset);
+			offset += 1;
+			for( let i = 0; i < numDevices; ++i ){
+				let devLocElm    = document.getElementById("selBoatDevLoc"+i);
+				let devRoleElm = document.getElementById("selBoatDevRole"+i);
+				let devNameElm = document.getElementById("selBoatDevName"+i);
+				let devIdElm   = document.getElementById("selBoatDevId"+i);
+
+				if( devLocElm == null ){
+					//create new row and table divs for device number i
+					let devCellStyle = "border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;";
+					let newTr = document.createElement( "tr" );
+					devLocElm = createSelBoatDevTd( newTr, "selBoatDevLoc"+i, devCellStyle );
+					devRoleElm = createSelBoatDevTd( newTr, "selBoatDevRole"+i, devCellStyle );
+					devNameElm = createSelBoatDevTd( newTr, "selBoatDevName"+i, devCellStyle );
+					devIdElm = createSelBoatDevTd( newTr, "selBoatDevId"+i, devCellStyle );
+					selBoatDevsTableElm.appendChild( newTr );
+				}
+				//read values for device number i
+				let devId = v.getUint32(offset);
+				offset += 4;
+				let devLoc = v.getUint8(offset);
+				offset += 1;
+				let devRole = v.getUint8(offset);
+				offset += 1;
+				//assign values to display
+				devLocElm.innerText  = devLoc;
+				devIdElm.innerText   = devId;
+				devRoleElm.innerText = devRole;
+			}
+
+		}
+
+		const boatDevRoles = Object.freeze({
 			HUD		:0,
 			STBOar	:1,
 			PORTOar	:2
 		});
 
-		const devLocationTypes = Object.freeze({
+		const devLocationRoles = Object.freeze({
 			Coach	:0,
 			Hull	:1,
 			Coxan	:2,
@@ -86,20 +183,32 @@
 			8		:10
 		});
 
-		const devAddAsTypElm = document.getElementById( 'devAddAsTyp' );
+		const devAddAsRoleElm = document.getElementById( 'devAddAsRole' );
 		const devAddAtSeatElm = document.getElementById( 'devAddAtSeat' );
 		function addDeviceToBoat( devId ){
-			
+
 			let offset = 0;
-			boatMsgView.setUint8( offset, boatDevTypes		[ devAddAsTypElm.value ]  );
+			boatMsgView.setUint32( offset, devId );
+			offset += 4;
+			boatMsgView.setUint8( offset, boatDevRoles		[ devAddAsRoleElm.value ]  );
 			offset += 1;
-			boatMsgView.setUint8( offset, devLocationTypes	[ devAddAtSeatElm.value ] );
+			boatMsgView.setUint8( offset, devLocationRoles	[ devAddAtSeatElm.value ] );
 			offset += 1;
 			boatMsgLength = offset;
 
 			sendCmd( 'BoatAddDev', boatMsgUint8Array, boatMsgLength, true );
 		}
-		
+
+
+		function startHavenTechLoading(){
+			loadScriptLoop(true);
+		}
+
+		function havenMain(){
+			console.log("havenMain");
+		}
+
+		window.onload = startHavenTechLoading();
 	</script>
 	
 	</body>

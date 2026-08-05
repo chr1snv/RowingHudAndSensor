@@ -62,7 +62,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 		self.wfile.write(f.read().encode('utf-8'))
 		f.close()
 
-	def replyWithEndFile(self, filePath):
+	def replyWithFile(self, filePath, finish=False):
 		if filePath.startswith('theFrayen'):
 			filePath = '../'+ filePath
 		f = open(os.getcwd() + os.path.sep + filePath)
@@ -106,7 +106,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					self.replyWithStartFile( "theFrayen/theFrayenBegin.html" )
 					print("writing cliId %i" % (cliId))
 					self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
-					self.replyWithEndFile( "theFrayen/theFrayenEnd.html" )
+					self.replyWithFile( "theFrayen/theFrayenEnd.html", True )
 
 				if parts[1] == "fileViewer.html": #file server view page
 					#self.path has /index.htm
@@ -140,7 +140,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					print("writing devId %i" % (devId))
 					self.wfile.write(("<h2 id=\"devId\">" + str(devId) + "</h2>").encode('utf-8'))
 					print("finishing writing camControl.html")
-					self.replyWithEndFile( "camControlEnd.html" )
+					self.replyWithFile( "camControlEnd.html", True )
 					print( " camControl devId : %i cliId : %i  cli.devId : %i" % (Client.clients[cliId].devId, Client.clients[cliId].cliId, Client.clients[cliId].devId) )
 					return
 
@@ -157,16 +157,19 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					#self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
 					#print("writing devId %i" % (devId))
 					#self.wfile.write(("<h2 id=\"devId\">" + str(devId) + "</h2>").encode('utf-8'))
-					output = io.StringIO()
 					print( "writing boats to rowing page" )
+					output = io.StringIO()
 					for boatId, boat in Boat.boatsById.items():
 						boatIdStr = str(boat.boatId)
 						output.write('<tr>')
 						output.write('<td><button onclick="selectBoat( \'' + boatIdStr + '\' )">' + \
 									boatIdStr + \
-									" : " + str(boat.name) + '</button></td></tr>' )
+									" : " + boat.name + '</button></td></tr>' )
+					self.wfile.write(output.getvalue().encode('utf-8'))
+					self.replyWithFile( "rowingMid.html" )
+
 					print( "writing devices to rowing page" )
-					
+					output = io.StringIO()
 					for devId, dev in Device.devices.items():
 						devIdStr = str(dev.devId)
 						output.write('<tr>')
@@ -178,7 +181,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 						output.write('</tr>')
 						print( "device " + devIdStr )
 					self.wfile.write(output.getvalue().encode('utf-8'))
-					self.replyWithEndFile( "rowingEnd.html" )
+					self.replyWithFile( "rowingEnd.html", True )
 					print("finishing writing rowing.html")
 					#print( " rowing devId : %i cliId : %i  cli.devId : %i" % (Client.clients[cliId].devId, Client.clients[cliId].cliId, Client.clients[cliId].devId) )
 					return

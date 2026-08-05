@@ -5,6 +5,8 @@ import DeviceWebsockHandler
 
 import Boat
 
+import BoatWebsockHandler
+
 
 import struct
 
@@ -153,31 +155,24 @@ async def websocketHandler(websocket):
 						authDCmdRequested = False
 						if client.login == None:
 							print("shouldn't happen, pktAuth is valid though client doesn't have a login")
-						if datType.startswith(b'getKey'): #generate a get key make it active and return it
+						elif datType.startswith(b'getKey'): #generate a get key make it active and return it
 							authDCmdRequested = True
 							getKey = networkCommon.getRandomASCIIByteArrWithLength(16).decode('utf-8').encode('utf-8');
 							Accounts.activeGetKeys[getKey] = client
 							#print("getKey 2 client.wSock %s client.websocket.remote_address %s" % (str(client.wSock), str(client.wSock.remote_address)) )
 							await client.send(Client.svrDevId, [('getKey', len(getKey), getKey)])
-						if datType.startswith(b'logout'):
+						elif datType.startswith(b'logout'):
 							authDCmdRequested = True
 							key = datStr
 							if key == client.login[Client.LOGIN_AUTHKEY_IDX]: #only allow user to logout themselves
 								await Client.logoutClient(client)
 
+						elif datType.startswith(b'Boat'):
+							await BoatWebsockHandler.handleWebSockClientDeviceRequests( client, datType, datStr )
 
-						if datType.startswith(b'BoatNew'): #request to create a new boat system/structure/machine
-							print("create new boat")
-							(boatName) = struct.unpack( "<32s", datStr[:32] )
-							newBoat = Boat.GetOrAllocateBoat( boatName )
-							Boat.fillNewBoatVals( newBoat, datStr )
-							client.selectedBoat = newBoat.boatId
-							
-						if datType.startswith(b'BoatAddDev'): #add selected device id device to boat with role
-							Boat.assignDeviceToBoat(client.selectedBoat, datStr)
 						#device = None
-						print("client.devId %i client.fSvrId %i" % (client.devId, client.fSvrId) )
-						if not authDCmdRequested and client.devId >= 0:
+						elif not authDCmdRequested and client.devId >= 0:
+							print("client.devId %i client.fSvrId %i" % (client.devId, client.fSvrId) )
 							DeviceWebsockHandler.handleWebSockClientDeviceRequests(client, datType, datStr)
 
 						elif client.fSvrId >= 0:

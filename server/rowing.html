@@ -36,6 +36,7 @@
 	<body>
 	<p id="networkAuthText"></p>
 	<a id="networkAuthLink"></a>
+	<div id="status" style="border:1px solid #ffffff; width:150px; margin:auto;"></div>
 	<table style="width:400px">
 		<tr>
 			<td><button onclick="getFile(finishUrlGoto, 'devSelection.html')" >< All devices</button></td>
@@ -44,70 +45,6 @@
 		</tr>
 	</table>
 	<h1>Avaliable Boats</h1>
-	<h2>Create New Boat</h2>
-	<table>
-		<tr><td>New Boat Name</td>						<td><input id='newBoatName' /></td></tr>
-		<tr><td>Length(m)</td>							<td><input id='newBoatLength' style="width:90px;"/></td>
-		<tr><td>Rigger Dist From Centerline(m)</td>		<td><input id='newBoatRiggerDistFromCenterline' style="width:90px;"/></td>
-		<tr><td>Stroke side</td>						<td><select id='newBoatStrokeSide' /><option>Starboard</option><option>Port</option></select></td></tr>
-		<tr><td>Oars Per Seat</td>						<td><select id="newBoatOarsPerSeat" style="width:90px;"><option>1</option><option>2</option></select></td></tr>
-		<tr><td>Oar Length(m)</td>						<td><input id='newBoatOarLength' style="width:90px;"/></td></tr>
-		<tr><td>Collar Dist From Handle End(m)</td>		<td><input id='newBoatCollarDistFromHandleEnd' style="width:90px;"/></td></tr>
-		<tr><td>Num Seats</td>							<td><select id="newBoatNumSeats" style="width:90px;">
-															<option>1</option><option>2</option><option>3</option>
-															<option>4</option><option>5</option><option>6</option>
-															<option>7</option><option>8</option><option>9</option>
-															<option>10</option>
-															</select></td></tr>
-		<tr><td>Stroke Rigger Dist From Stern(m)</td>	<td><input id='newBoatStrokeRiggerDistFromStern' style="width:90px;"/></td></tr>
-
-		<tr><td><button onclick="createBoat( )" >Create Boat</button></td></tr>
-		</tr>
-	</table>
-	<h2>Selected Boat</h2>
-	<table>
-		<tr>
-			<td>Name</td>
-			<td>Length</td>
-			<td>Stroke Side</td>
-			<td>Num Seats</td>
-		</tr>
-		<tr>
-			<td id="selBoatName">Name</td>
-			<td id="selBoatLen">Length</td>
-			<td id="selBoatStrkSd">Stroke Side</td>
-			<td id="selBoatNumSeats">Num Seats</td>
-		</tr>
-	</table>
+	<table id="avaliableBoatsTable">
 	
-
-	<h1>Avaliable Devices</h1>
-	<table>
-		<tr>
-			<td>As Type</td>
-			<td><select id='devAddAsTyp'>
-				<option>HUD</option>
-				<option>STBOar</option>
-				<option>PORTOar</option>
-				</select>
-			</td>
-		</tr>
-		<tr>
-			<td>At Position</td>
-			<td><select id='devAddAtSeat'>
-				<option>Coach</option>
-				<option>Hull</option>
-				<option>Coxan</option>
-				<option>1</option>
-				<option>2</option>
-				<option>3</option>
-				<option>4</option>
-				<option>5</option>
-				<option>6</option>
-				<option>7</option>
-				<option>8</option>
-				</select>
-			</td>
-		</tr>
-	</table>
-	<table>
+	
