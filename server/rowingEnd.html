@@ -1,6 +1,8 @@
 	</table>
 	<script src="commonFunctions.js"></script>
-	<script src="HavenTech/HavenInclude.js"></script>
+	<script src="HavenTech/NetworkCommunications/Iohelpers.js"></script>
+	<script src="HavenTech/jszip.min.js"></script>
+	<script src="HavenTech/wink-nlp-bundle.umd.js"></script>
 	<canvas id="frayenCanvas" width=640px; height=480px; style="width:640px; height:480px;"></canvas>
 
 	<script>
@@ -200,16 +202,189 @@
 		}
 
 
+		function havenLoadCompFileViewer(){
+			console.log("havenLoadCompFileViewer");
+			havenMain();
+		}
+
 		function startHavenTechLoading(){
-			loadScriptLoop(true);
+			console.log("startHavenTechLoading");
+			loadScriptLoop(havenSourceZip, havenLoadCompFileViewer);
 		}
-
-		function havenMain(){
-			console.log("havenMain");
+		
+		
+		IOTRequest = false; //request files directly from http without getkey authentication
+		function begin(){
+		
+			thisCliId = document.getElementById("cliId").innerHTML;
+			
+			statusElm = document.getElementById("status");
+			//assignDefaultImgSrcs();
+			loadFile("HavenTech/havenTech.zip", havenZipReady, null );
+			//getFile(finishAppendScript, "HavenTech/HavenInclude.js", [document.getElementsByTagName("body")[0], startHavenTechLoading] );
+			console.log("end begin");
 		}
-
-		window.onload = startHavenTechLoading();
+		window.addEventListener('load', begin, false);
 	</script>
 	
+	<div id="befrCanv"></div>
+	<div id="aftrCanv"></div>
+	
+	<h3 id="cntrlsTxt">Touch / WASD keys Move, Q-E Roll, Shift 5x speed, Mouse click - look : ESC to exit</h3>
+	<h4 id="cameraDebugText"></h4>
+	<div style="margin:auto; width:800px;">
+		<table style="margin:auto; width:800px;">
+			<tr>
+				<td style="width:100px;"><button type="button" id="showSettings" style="height:40px; width:70px;" onclick="showHideSettings()">> Settings</button></td>
+				<td id="status" style="border:1px solid #ffffff; width:150px;">Loading Scripts</td>
+				<td style="width:120px;"><button type="button" style="height:40px;" onclick="EnterFullscreen()">Enter Fullscreen</button></td>
+				<td><img id="soundIcon" onclick="if(typeof soundIconClicked != 'undefined')soundIconClicked()" style="height:40px; opacity:0.5;" src="scenes/default/textures/soundIconMuted.png"></img></td>
+				<td><img id="micIcon" onclick="if(typeof micIconClicked != 'undefined')micIconClicked()" style="height:40px; opacity:0.5;" src="scenes/default/textures/micInputIconMuted.png"></img></td>
+				<td>Scene</td>
+				<td>
+					<select id="sceneSelection" style="height:40px;" name="scene">
+						<option>girl_35_boatAnimsIntegrated</option>
+						<option>rowingVisualizer</option>
+					</select>
+				</td>
+				<td><button type="button" id="runSceneButton" style="height:40px; width:80px" onclick="stopAutostart()">Stop Autostart</button></td>
+			</tr>
+			<tr>
+				<td id="networkAuthText"></td>
+			</tr>
+			<tr>
+				<td><a id="networkAuthLink" href=""></a></td>
+			</tr>
+		</table>
+		<table id="settingsTable" style="display:none;">
+			<tr>
+				<td><button type="button" id="soundInputShowGraphButton" onclick="ShowSoundInputGraph(this)" style="display: none;">Show Sound Input Graph</button></td>
+				<td><button type="button" id="showCognitiveBayesianNodeGraph" onclick="ShowCognitiveBayesianNodeGraph(this)" style="display: none;">Show Cognitive Bayesian Node Graph</button></td>
+			</tr>
+
+			<tr>
+				<td>Mouse X Sensitivity</td>
+				<td><input type="number" id="mouseXSen" value="0.1" step="0.1" onchange="mouseSenChange()" style="width:4em;"></input></td>
+				<td>Mouse Y Sensitivity</td>
+				<td><input type="number" id="mouseYSen" value="0.1" step="0.1" onchange="mouseSenChange()" style="width:4em;"></input></td>
+				<td><button type="button" class="tooltip" onclick="ResetSettings()" style="background-color:thistle;">Reset Settings
+				<span class="tooltiptext">sets defaults</span></button></td>
+			</tr>
+			<tr>
+				<td>Touch Move Sens</td>
+				<td><input type="number" id="touchMoveSen" value="0.005" step=0.001; onchange="touchSenChange()" style="width:4em;"></input></td>
+				<td>Touch Looks Sens</td>
+				<td><input type="number" id="touchLookSen" value="0.05" step=0.01; onchange="touchSenChange()" style="width:4em;"></input></td>
+			</tr>
+
+			<tr>
+				<td>Canvas Width</td>
+				<td><input type="number" id="canvWidth" value="640" step=0.1; style="width:4em;"></input></td>
+				<td>Canvas Height</td>
+				<td><input type="number" id="canvHeight" value="480" step=0.1; style="width:4em;"></input></td>
+				<td><button type="button" onclick="SetCanvasSize()">Set Size</button></td>
+			</tr>
+
+			<tr>
+				<td>Fullscreen Width</td>
+				<td><input type="number" id="fullScrCanvWidth" value="1920" step=0.1; style="width:4em;"></input></td>
+				<td>Fullscreen Height</td>
+				<td><input type="number" id="fullScrCanvHeight" value="1080" step=0.1; style="width:4em;"></input></td>
+			</tr>
+			
+			<tr>
+				<td>Camera Near View Limit</td>
+				<td><input type="number" id="camNear" value="1" step=1; onchange="camLimitChange()" style="width:4em;"></input></td>
+				<td>Camera Far View Limit</td>
+				<td><input type="number" id="camFar" value="1" step=100; onchange="camLimitChange()" style="width:4em;"></input></td>
+			</tr>
+			<tr>
+				<td><input type="checkbox" id="animDbgDiv" onclick="animDebugToggle()">Show Anim Transforms</input></td>
+				<td><input type="checkbox" id="animPlayDiv" onclick="animPlayToggle()" checked>Play Anim</input></td>
+			</tr>
+			
+		</table>
+		<div id="orientationTextDiv" style="display:none;">
+			<table>
+				<tr>
+					<td>
+						<img src="scenes/default/textures/coordinates_128.png"></img>
+					</td>
+					<td>
+						<h4>Camera</h4>
+						<table>
+							<tr>
+								<td>location</td><td id="camLoc"></td>
+							</tr>
+							<tr>
+								<td>rotation</td><td id="camRot"></td>
+							</tr>
+						</table>
+						<table>
+							<tr><td>+x right</td><td>-x left</td></tr>
+							<tr><td>+y fwd</td><td>-y back</td></tr>
+							<tr><td>+z up</td><td>-z down</td></tr>
+						</table>
+					</td>
+					<td style="vertical-align:top;">
+						<h4>Mouse</h4>
+						<table>
+							<tr>
+								<td>canvPos</td><td id="mouseCanvPos"></td>
+								<td>ScreenPos</td><td id="mouseScreenPos"></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				
+				<tr>
+					<div style="width:80%; margin:auto;">
+						<table style="margin:auto; text-align:left;">
+							<tr><td id="debugTags" style="color:white;">Debug Message Types<br/></td></tr>
+							<tr>
+								<td>
+									<table>
+									</table>
+								</td>
+							</tr>
+						</table>
+					</div>
+					<h4 id ="status"></h4>
+				</tr>
+			</table>
+		</div>
+	</div>
+	
+	
+	
+	
+	<div>
+		<input type="text" id="SentenceParseTest" checked placeholder="Test Buffer Stack Arc parser">
+		<input type="button" onclick="handleParseRequest()" value=Parse>
+	</div>
+	
+	<div class="flex-container">
+	<div class="flex-child">
+		<h3>1. Step Decision Traces</h3>
+		<div id="decisionLogOutput" class="panel decision" style="text-align:left; white-space: pre; font-family: ui-monospace, monospace;"></div>
+	</div>
+	<div class="flex-child">
+		<h3>2. Dependency Graph Tree</h3>
+		<div id="dependencyGraphOutput" class="panel graph" style="text-align:left; white-space: pre; font-family: ui-monospace, monospace;"></div>
+	</div>
+	</div>
+
+	<h3>3. Extracted Knowledge Graph Triples</h3>
+	<div id="tripleStoreOutput" class="panel triple" style="text-align:left; white-space: pre; font-family: ui-monospace, monospace;"></div>
+
+	<canvas id="spectInputVisCanvas" width=512px; height=512px;></canvas>
+
+	<table>
+		<tr>
+			<td><button type="button" id="soundInputShowGraphButton" onclick="ShowSoundInputGraph(this)" style="display: none;">Show Sound Input Graph</button></td>
+			<td><button type="button" id="showCognitiveBayesianNodeGraph" onclick="ShowCognitiveBayesianNodeGraph(this)" style="display: none;">Show Cognitive Bayesian Node Graph</button></td>
+		</tr>
+	</table>
+
 	</body>
 </html>

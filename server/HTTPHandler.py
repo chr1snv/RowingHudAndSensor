@@ -145,18 +145,11 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					return
 
 				elif parts[1] == "rowing.html": #device control page
-					#self.path has /index.htm
-					#devId = int(parts[3])
-					#cliId = int(parts[5])
-					#client.fSvrId = -1
-					#client.devId = devId #switch the client to controlling device
-					#dev = Device.GetOrAllocateDevice( devId )
-					#dev.controlingCliId = cliId
+					
 					self.replyWithStartFile( "rowing.html" )
-					#print("writing cliId %i" % (cliId))
-					#self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
-					#print("writing devId %i" % (devId))
-					#self.wfile.write(("<h2 id=\"devId\">" + str(devId) + "</h2>").encode('utf-8'))
+					cliId = client.cliId
+					print("writing cliId %i" % (cliId))
+					self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
 					print( "writing boats to rowing page" )
 					output = io.StringIO()
 					for boatId, boat in Boat.boatsById.items():
