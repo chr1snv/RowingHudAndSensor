@@ -4,6 +4,7 @@ import networkCommon
 
 import struct # to get info on struct.unpack formatting
 #help( struct )
+import threading
 
 
 class Boat:
@@ -97,21 +98,22 @@ def fillNewBoatVals( newBoat, valBytes ):
 	except Exception as e:
 		print( "fillValues error %s" % str(e) )
 
-
+boats_lock = threading.Lock()
 boats = {}
 boatsById = {}
 lastAllocatedBoatId = -1
 
 def GetOrAllocateBoat( boatName ):
-	global lastAllocatedBoatId
-	if boatName not in boats:
-		lastAllocatedBoatId += 1
-		print("allocating boat %i" % lastAllocatedBoatId)
-		boat = Boat()
-		boat.boatId = lastAllocatedBoatId
-		boat.name = boatName
-		boatsById[boat.boatId] = boat
-		boats[boatName] = boat
-	boats[boatName].lastAccessTime = networkCommon.curMillis()
-	print( "returning boatId %i" % boats[boatName].boatId )
-	return boats[boatName]
+	with boats_lock:
+		global lastAllocatedBoatId
+		if boatName not in boats:
+			lastAllocatedBoatId += 1
+			print("allocating boat %i" % lastAllocatedBoatId)
+			boat = Boat()
+			boat.boatId = lastAllocatedBoatId
+			boat.name = boatName
+			boatsById[boat.boatId] = boat
+			boats[boatName] = boat
+		boats[boatName].lastAccessTime = networkCommon.curMillis()
+		print( "returning boatId %i" % boats[boatName].boatId )
+		return boats[boatName]

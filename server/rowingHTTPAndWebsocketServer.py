@@ -73,18 +73,18 @@ def setKeepAlive(rqh):
 ########
 async def startWebsocketServer():
 	global stop
-	print("start websocket server init")
+	networkCommon.dbgPrint("start websocket server init")
 	ssl_context = networkCommon.get_ssl_context(networkCommon.certfile, networkCommon.keyfile)
 
 	stop = asyncio.Future()
 
-	print( "serving websocket at %s port %i" % (networkCommon.svrIp, websocketPort) )
+	networkCommon.dbgPrint( "serving websocket at %s port %i" % (networkCommon.svrIp, websocketPort) )
 	#https://stackoverflow.com/questions/67810506/websockets-exceptions-connectionclosederror-code-1011-unexpected-error-no
 	async with serve(WebsocketHandler.websocketHandler, networkCommon.svrIp, websocketPort, ping_interval=5, ping_timeout=1, ssl=ssl_context, open_timeout=1) as ws:
-		print('ws before await stop')
+		networkCommon.dbgPrint('ws before await stop')
 		await stop
 		ws.close()
-		print('ws close called')
+		networkCommon.dbgPrint('ws close called')
 
 
 def startWebsocketServer_in_new_thread():
@@ -104,7 +104,7 @@ def loopCheckIpHasChanged():
 	while(1):
 		currentIp = networkCommon.getIp()
 		if currentIp != networkCommon.svrIp:
-			print('ip has changed, rebinding servers...')
+			networkCommon.dbgPrint('ip has changed, rebinding servers...')
 			networkCommon.svrIp = currentIp
 
 			# Shutdown old servers properly
@@ -119,12 +119,14 @@ def loopCheckIpHasChanged():
 
 			# Start new servers
 			server_address = (networkCommon.svrIp, httpPort)
-			print(f"starting httpAsyncServer at {server_address[0]} port {server_address[1]}")
+			networkCommon.dbgPrint(f"starting httpAsyncServer at {server_address[0]} port {server_address[1]}")
 			backend_server, networkCommon.backend_thread = networkCommon.start_http_server_in_new_thread(server_address, HTTPHandler.HTTPAsyncHandler)
 
 			webSocketSvrThread = startWebsocketServer_in_new_thread()
 
 		time.sleep(1)
+
+networkCommon.dbgPrint( "test" )
 
 #run the ip change checking loop (main program loop)
 f = lambda : loopCheckIpHasChanged()

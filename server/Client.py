@@ -1,5 +1,6 @@
 
 import networkCommon
+import threading
 
 svrDevId = 1
 
@@ -73,6 +74,8 @@ class Client:
 			if self.login != None:
 				self.login[LOGIN_REMAINING_RESPONSES_IDX] -= 1
 
+
+clients_lock = threading.Lock()
 #list of clients by ip address
 #used when logging in with username/password
 clients = {}
@@ -80,14 +83,15 @@ clientsById = {}
 lastAllocatedClientId = -1
 
 def GetOrAllocateClient( ipAddr ):
-	global lastAllocatedClientId
-	if ipAddr not in clients:
-		lastAllocatedClientId += 1
-		print("allocating client %i" % lastAllocatedClientId)
-		cli = Client()
-		cli.cliId = lastAllocatedClientId
-		clientsById[cli.cliId] = cli
-		clients[ipAddr] = cli
-	clients[ipAddr].lastCommTime = networkCommon.curMillis()
-	print( "returning cliId %i" % clients[ipAddr].cliId )
-	return clients[ipAddr]
+	with clients_lock:
+		global lastAllocatedClientId
+		if ipAddr not in clients:
+			lastAllocatedClientId += 1
+			print("allocating client %i" % lastAllocatedClientId)
+			cli = Client()
+			cli.cliId = lastAllocatedClientId
+			clientsById[cli.cliId] = cli
+			clients[ipAddr] = cli
+		clients[ipAddr].lastCommTime = networkCommon.curMillis()
+		print( "returning cliId %i" % clients[ipAddr].cliId )
+		return clients[ipAddr]

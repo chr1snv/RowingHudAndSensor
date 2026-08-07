@@ -2,6 +2,7 @@
 import networkCommon
 
 import struct
+import threading
 
 # Define your C++ struct sizes in bytes for explicit pointer sliding
 
@@ -319,13 +320,14 @@ def clearCompletedCommands(cmds, cmdValArr):
 
 
 
-
+devices_lock = threading.Lock()
 devices = {}
 
 def GetOrAllocateDevice( devId ):
-	if not ( devId in devices.keys() ):
-		dev = Device()
-		dev.devId = devId
-		devices[devId] = dev
-	return devices[devId]
+	with devices_lock:
+		if not ( devId in devices.keys() ):
+			dev = Device()
+			dev.devId = devId
+			devices[devId] = dev
+		return devices[devId]
 

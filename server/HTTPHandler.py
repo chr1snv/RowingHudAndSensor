@@ -1,5 +1,7 @@
 import http.server
 
+import networkCommon
+
 import Accounts, Client, Device, FileServer
 
 import Boat
@@ -12,51 +14,63 @@ from http.cookies import SimpleCookie
 
 class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 	def __init__(self, request, client_address, server):
+		self.timeout = 5
+		request.settimeout(5)
 		#enable http 1.1 to avoid tls and tcp setup time per request by 
 		self.protocol_version = 'HTTP/1.1' #keeping connections open until calling self.finish()
+		networkCommon.dbgPrint("HTTPAsyncHandler __init__")
 		try:
 			super().__init__(request, client_address, server)
 		except Exception as e:
 			None
 
-	def replyWithStartFile(self, filePath):
+	def replyWithStartFile(self, filePath, closeConn=False):
 		if filePath.startswith('theFrayen'):
 			filePath = '../'+ filePath
 		if filePath.startswith('scenes'):
 			filePath = '../theFrayen/'+ filePath 
 		filePathStr = os.getcwd() + os.path.sep + filePath
 		self.send_response(200)
-		print( filePathStr )
+		networkCommon.dbgPrint( filePathStr )
 		if filePath.endswith('.jpg') or filePath.endswith('.ico') or filePath.endswith('.png') or filePath.endswith('.zip'):
 			f = open(filePathStr, 'rb')
 			if filePath.endswith('.ico'):
-				print("sending ico")
+				networkCommon.dbgPrint("sending ico")
 				self.send_header('Content-type','image/x-icon')
 			elif filePath.endswith('.ico'):
-				print("sending jpg")
+				networkCommon.dbgPrint("sending jpg")
 				self.send_header('Content-type','image/jpeg')
 			elif filePath.endswith('.png'):
-				print("sending png")
+				networkCommon.dbgPrint("sending png")
 				self.send_header('Content-type','image/png')
 			elif filePath.endswith('.zip'):
-				print("sending zip")
+				networkCommon.dbgPrint("sending zip")
 				self.send_header('Content-type', 'application/zip')
 			fileContents = f.read()
 			self.send_header('Content-length', len(fileContents))
+			if closeConn:
+				self.send_header("Connection", "close")
 			self.end_headers()
 			f.close()
 			self.wfile.write(fileContents)
+			if closeConn:
+				self.close_connection = True
+				try:
+					self.wfile.flush()
+					self.request.close() 
+				except Exception as e:
+					networkCommon.dbgPrint( e )
 			return
 		
 		f = open(filePathStr)
 		if filePath.endswith('.js'):
-			print("sending js")
+			networkCommon.dbgPrint("sending js")
 			self.send_header('Content-type','application/javascript')
 		elif filePath.endswith('.css'):
-			print("sending css")
+			networkCommon.dbgPrint("sending css")
 			self.send_header('Content-type', 'text/css')
 		else:
-			print("sending text")
+			networkCommon.dbgPrint("sending text")
 			self.send_header('Content-type','text/html')
 		self.end_headers()
 		self.wfile.write(f.read().encode('utf-8'))
@@ -74,7 +88,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 	def do_GET(self):
 
 		try:
-			#print("get path " + self.path )
+			networkCommon.dbgPrint("get path " + self.path )
 			parts = re.split(r"[/?&=]", self.path)
 			
 			pktAuth = ''
@@ -96,15 +110,15 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 				getKey = parts[-1].encode('utf-8')
 				(client,pktAuth) = Accounts.ClientAndPktAuthFromGetKey( getKey )
 				getKeyValid = len(pktAuth) > 0
-			print('parts %s parts[-2] %s getKeyValid %i' % (str(parts), str(parts[-2]), getKeyValid) )
+			networkCommon.dbgPrint('parts %s parts[-2] %s getKeyValid %i' % (str(parts), str(parts[-2]), getKeyValid) )
 
 			if getKeyValid: #then allowed to request the following
 				if parts[1] == "theFrayen.html":
-					print( 'parts %s' % str(parts) )
+					networkCommon.dbgPrint( 'parts %s' % str(parts) )
 					sceneName = parts[3]
 					cliId = client.cliId
 					self.replyWithStartFile( "theFrayen/theFrayenBegin.html" )
-					print("writing cliId %i" % (cliId))
+					networkCommon.dbgPrint("writing cliId %i" % (cliId))
 					self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
 					self.replyWithFile( "theFrayen/theFrayenEnd.html", True )
 
@@ -114,16 +128,16 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					cliId = int(parts[5])
 					client.devId = -1
 					client.fSvrId = fSvrId #switch the client to controlling file server
-					print( 'setting client %i fSvrId %i' % (cliId, client.fSvrId) )
+					networkCommon.dbgPrint( 'setting client %i fSvrId %i' % (cliId, client.fSvrId) )
 					fSvr = FileServer.GetOrAllocateFileServer( fSvrId )
 					fSvr.accessingCliIds.append( cliId )
 					self.replyWithStartFile( "fileViewer.html" )
 					
-					print("writing cliId %i" % (cliId))
+					networkCommon.dbgPrint("writing cliId %i" % (cliId))
 					self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
-					print("writing fSvrId %i" % (fSvrId))
+					networkCommon.dbgPrint("writing fSvrId %i" % (fSvrId))
 					self.wfile.write(("<h2 id=\"fSvrId\">" + str(fSvrId) + "</h2>").encode('utf-8'))
-					print("finishing writing fileViewer.html")
+					networkCommon.dbgPrint("finishing writing fileViewer.html")
 					self.finish()
 					return
 				elif parts[1] == "camControl.html": #device control page
@@ -135,47 +149,49 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					dev = Device.GetOrAllocateDevice( devId )
 					dev.controlingCliId = cliId
 					self.replyWithStartFile( "camControlBegin.html" )
-					print("writing cliId %i" % (cliId))
+					networkCommon.dbgPrint("writing cliId %i" % (cliId))
 					self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
-					print("writing devId %i" % (devId))
+					networkCommon.dbgPrint("writing devId %i" % (devId))
 					self.wfile.write(("<h2 id=\"devId\">" + str(devId) + "</h2>").encode('utf-8'))
-					print("finishing writing camControl.html")
+					networkCommon.dbgPrint("finishing writing camControl.html")
 					self.replyWithFile( "camControlEnd.html", True )
-					print( " camControl devId : %i cliId : %i  cli.devId : %i" % (Client.clients[cliId].devId, Client.clients[cliId].cliId, Client.clients[cliId].devId) )
+					networkCommon.dbgPrint( " camControl devId : %i cliId : %i  cli.devId : %i" % (Client.clients[cliId].devId, Client.clients[cliId].cliId, Client.clients[cliId].devId) )
 					return
 
 				elif parts[1] == "rowing.html": #device control page
 					
 					self.replyWithStartFile( "rowing.html" )
 					cliId = client.cliId
-					print("writing cliId %i" % (cliId))
+					networkCommon.dbgPrint("writing cliId %i" % (cliId))
 					self.wfile.write(("<div id=\"cliId\" style=\"display:none;\">" + str(cliId) + "</div>").encode('utf-8'))
-					print( "writing boats to rowing page" )
+					networkCommon.dbgPrint( "writing boats to rowing page" )
 					output = io.StringIO()
-					for boatId, boat in Boat.boatsById.items():
-						boatIdStr = str(boat.boatId)
-						output.write('<tr>')
-						output.write('<td><button onclick="selectBoat( \'' + boatIdStr + '\' )">' + \
-									boatIdStr + \
-									" : " + boat.name + '</button></td></tr>' )
+					with Boat.boats_lock:
+						for boatId, boat in Boat.boatsById.items():
+							boatIdStr = str(boat.boatId)
+							output.write('<tr>')
+							output.write('<td><button onclick="selectBoat( \'' + boatIdStr + '\' )">' + \
+										boatIdStr + \
+										" : " + boat.name + '</button></td></tr>' )
 					self.wfile.write(output.getvalue().encode('utf-8'))
 					self.replyWithFile( "rowingMid.html" )
 
-					print( "writing devices to rowing page" )
+					networkCommon.dbgPrint( "writing devices to rowing page" )
 					output = io.StringIO()
-					for devId, dev in Device.devices.items():
-						devIdStr = str(dev.devId)
-						output.write('<tr>')
-						output.write('<td><button onclick="addDeviceToBoat( \'' + devIdStr + '\' )">' + \
-									devIdStr + \
-									" : " + str(dev.description) + \
-									" : " + str(Device.deviceTypes[dev.devType][0]) + '</button>'+ \
-									'</td>')
-						output.write('</tr>')
-						print( "device " + devIdStr )
+					with Device.devices_lock:
+						for devId, dev in Device.devices.items():
+							devIdStr = str(dev.devId)
+							output.write('<tr>')
+							output.write('<td><button onclick="addDeviceToBoat( \'' + devIdStr + '\' )">' + \
+										devIdStr + \
+										" : " + str(dev.description) + \
+										" : " + str(Device.deviceTypes[dev.devType][0]) + '</button>'+ \
+										'</td>')
+							output.write('</tr>')
+							networkCommon.dbgPrint( "device " + devIdStr )
 					self.wfile.write(output.getvalue().encode('utf-8'))
 					self.replyWithFile( "rowingEnd.html", True )
-					print("finishing writing rowing.html")
+					networkCommon.dbgPrint("finishing writing rowing.html")
 					#print( " rowing devId : %i cliId : %i  cli.devId : %i" % (Client.clients[cliId].devId, Client.clients[cliId].cliId, Client.clients[cliId].devId) )
 					return
 
@@ -203,29 +219,32 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					output.write("<td><button onclick=\"logout()\">L O G   O U T</button></td>")
 					output.write("<td><h4 style=\"margin-bottom:0px;\">Packets until auto-logout</h4></td><td><p id=\"remainingPackets\">?</p></td>")
 					output.write("</tr></table>")
-					print("dev selec 1")
+					networkCommon.dbgPrint("dev selec 1")
 					output.write("<h1>DEVICES</h1>")
-					client = Client.activeClientLogins[pktAuth]
-					cliIdStr = str( client.cliId )
-					output.write("<div id=\"cliId\" style=\"display:none;\">" + cliIdStr + "</div>")
-					print("dev selec 1.5")
+					with Client.clients_lock:
+						client = Client.activeClientLogins[pktAuth]
+						cliIdStr = str( client.cliId )
+						output.write("<div id=\"cliId\" style=\"display:none;\">" + cliIdStr + "</div>")
+					networkCommon.dbgPrint("dev selec 1.5")
 					Accounts.cleanupNonRecentConnections()
-					for devId, dev in Device.devices.items():
-						devIdStr = str(dev.devId)
-						output.write('<tr>')
-						output.write('<td><button onclick="getFile(finishUrlGoto,\'camControl.html\', [[\'devId\', ' + devIdStr + '],[\'cliId\', ' + cliIdStr + ']])">' + \
-									devIdStr + \
-									" : " + str(dev.description) + \
-									" : " + str(Device.deviceTypes[dev.devType][0]) + '</button></td>')
-						output.write('</tr>')
-					print("dev selec 2")
+					with Device.devices_lock:
+						for devId, dev in Device.devices.items():
+							devIdStr = str(dev.devId)
+							output.write('<tr>')
+							output.write('<td><button onclick="getFile(finishUrlGoto,\'camControl.html\', [[\'devId\', ' + devIdStr + '],[\'cliId\', ' + cliIdStr + ']])">' + \
+										devIdStr + \
+										" : " + str(dev.description) + \
+										" : " + str(Device.deviceTypes[dev.devType][0]) + '</button></td>')
+							output.write('</tr>')
+					networkCommon.dbgPrint("dev selec 2")
 					output.write("<h1>FILE SERVERS</h1>")
-					for fSvrId, fSvr in FileServer.fileSvrs.items():
-						fSvrIdStr = str(fSvr.fSvrId)
-						output.write('<tr>')
-						output.write('<td><button onclick="getFile(finishUrlGoto,\'fileViewer.html\', [[\'fSvrId\', ' + fSvrIdStr + '],[\'cliId\', ' + cliIdStr + ']])">' + fSvrIdStr + " : " + str(fSvr.description) + '</button></td>')
-						output.write('</tr>')
-					print("dev selec 3")
+					with FileServer.fileSvrs_lock:
+						for fSvrId, fSvr in FileServer.fileSvrs.items():
+							fSvrIdStr = str(fSvr.fSvrId)
+							output.write('<tr>')
+							output.write('<td><button onclick="getFile(finishUrlGoto,\'fileViewer.html\', [[\'fSvrId\', ' + fSvrIdStr + '],[\'cliId\', ' + cliIdStr + ']])">' + fSvrIdStr + " : " + str(fSvr.description) + '</button></td>')
+							output.write('</tr>')
+					networkCommon.dbgPrint("dev selec 3")
 					output.write("<h1>APPS</h1>")
 					output.write('<tr><td><button onclick="getFile(finishUrlGoto,\'rowing.html\')">Rowing Visualizer</button></td></tr>')
 					output.write('<tr><td><button onclick="getFile(finishUrlGoto,\'chrona.html\')">Stock Analyser Chrona</button></td></tr>')
@@ -234,7 +253,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					output.write('<tr><td><button onclick="getFile(finishUrlGoto,\'theFrayen.html\', [[\'scene\',\'iceMountian\']])">ICE MOUNTIAN</button></td></tr>')
 					output.write("<h1>LOGONS</h1>")
 					#list the sessions where the user is logged in so that they can be selected and logged out
-					print('pktAuth %s' % pktAuth)
+					networkCommon.dbgPrint('pktAuth %s' % pktAuth)
 					output.write( '<tr>' )
 					output.write( '<td><button onclick="logout()">'+ str(client.addr) + ":" + str(client.login[Client.LOGIN_REMAINING_RESPONSES_IDX])+'</button></td>')
 					output.write( '</tr>' )
@@ -243,7 +262,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					output.write("function begin(){")
 					output.write("thisCliId = document.getElementById(\"cliId\").innerHTML;")
 					output.write("}")
-					print("dev selec 4")
+					networkCommon.dbgPrint("dev selec 4")
 					output.write("window.addEventListener('load', begin, false);")
 					output.write("</script>")
 					output.write("</body>")
@@ -262,22 +281,22 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 				filePath = parts[1]
 				for i in range(2,len(parts)):
 					filePath += os.sep + parts[i]
-				print("replying with file  %s" % filePath )
-				self.replyWithStartFile(filePath)
+				networkCommon.dbgPrint("replying with file  %s" % filePath )
+				self.replyWithStartFile(filePath, True)
 				self.finish()
 
 
 			elif parts[1].endswith("commonFunctions.js"):
-				self.replyWithStartFile(self.path)
+				self.replyWithStartFile(self.path, True)
 				self.finish()
 
 			else: # the login page
-				print( "reply with login.html getKeyValid %i" % getKeyValid )
-				self.replyWithStartFile( "login.html" )
+				networkCommon.dbgPrint( "reply with login.html getKeyValid %i" % getKeyValid )
+				self.replyWithStartFile( "login.html", True )
 				self.finish()
 			
-			print("end get handler")
+			networkCommon.dbgPrint("end get handler")
 
 		except Exception as e:#@IOError:
-			print(e)
+			networkCommon.dbgPrint(e)
 			#self.send_error(404,'File Not Found: %s' % self.path)

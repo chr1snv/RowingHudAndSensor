@@ -13,7 +13,16 @@ from datetime import datetime, timezone
 from random import random
 
 import socket
+import threading
 
+print_lock = threading.Lock()
+def dbgPrint(strn, *args):
+	with print_lock:
+		if args:
+			print( strn, *args )
+		else:
+			print( strn )
+		sys.stdout.flush()
 #import os
 #import getpass
 
