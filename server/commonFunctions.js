@@ -59,6 +59,17 @@ function socketCloseAndRetryConnect(){
 	setTimeout(function(){sendQueuedMessagesToServerOverWebsocket()},1000+Math.random()*500);
 }
 
+nAtErrShown = false;
+nAtElm = document.getElementById("networkAuthText");
+nALElm = document.getElementById("networkAuthLink");
+function hideWebsocketErrorMessage(){
+	if( nAtErrShown ){
+		nAtElm.innerText = '';
+		nALElm.innerText = '';
+		nAtErrShown = false;
+	}
+}
+
 var webSocketOnMessage = null;
 
 let iotWebsocketSvrUrlParts = document.URL.split(":");
@@ -72,6 +83,7 @@ function sendQueuedMessagesToServerOverWebsocket( signalingMessage=null ){
 //so using tcp websocket for compatibility and simplicity
 
 	if( socketInstance == null ){
+		numWebsockConnectionWaitLoops = 0;
 		socketInstance = new WebSocket(iotWebsocketSvrUrl);
 		socketInstance.binaryType = 'arraybuffer';
 		
@@ -84,20 +96,16 @@ function sendQueuedMessagesToServerOverWebsocket( signalingMessage=null ){
 
 
 		socketInstance.onerror = (event) => {
-			console.log("socketInstance.onerror " + event);
-			let nAtElm = document.getElementById("networkAuthText");
+			console.log("socketInstance.onerror " + event.currentTarget.readyState);
 			nAtElm.innerHTML = "websocket, certificate may need to be accepted - or server error";
-			let nALElm = document.getElementById("networkAuthLink");
 			let urlParts = iotWebsocketSvrUrl.split("://");
 			let url = "https://"+urlParts[1];
 			nALElm.href = url;
 			nALElm.innerText = url;
+			nAtErrShown = true;
 			clearTimeout( socketErrorTimeoutHandle );
 			socketErrorTimeoutHandle = setTimeout( 
-				function(){ 
-					document.getElementById("networkAuthText").innerText = '';
-					document.getElementById("networkAuthLink").innerText = '';
-				},
+				hideWebsocketErrorMessage(),
 				5000 );
 			socketCloseAndRetryConnect();
 		}
@@ -111,6 +119,7 @@ function sendQueuedMessagesToServerOverWebsocket( signalingMessage=null ){
 		}
 
 		socketInstance.onmessage = (event) => {
+			hideWebsocketErrorMessage();
 			let response = event.data;
 			if( (response.byteLength != undefined && response.byteLength <= 0) || 
 				(response.size != undefined && response.size <= 0 ) )
@@ -159,13 +168,20 @@ function sendQueuedMessagesToServerOverWebsocket( signalingMessage=null ){
 	}else{ //socket already exists
 		if( socketInstance.readyState == socketInstance.OPEN ){
 			sendAllQueuedMessagesOverWebsocket();
+			numWebsockConnectionWaitLoops = 0;
 		}else{
 			console.log( "socketInstance not readyToSend readyState " + socketInstance.readyState );
 			
-			if( socketInstance.readyState != 1 ){
+			if( socketInstance.readyState == 0 ){ //still connecting
+				numWebsockConnectionWaitLoops += 1;
+				if( numWebsockConnectionWaitLoops > 3 )
+					socketCloseAndRetryConnect();
+				else
+					setTimeout(function(){sendQueuedMessagesToServerOverWebsocket()},1000+Math.random()*500);
+			}
+			else if( socketInstance.readyState != 1 ){
 				socketCloseAndRetryConnect();
 			}
-			//else if ready state 0 still connecting
 		}
 	}
 
