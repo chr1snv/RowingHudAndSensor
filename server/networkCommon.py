@@ -3,6 +3,7 @@ from netifaces import interfaces, ifaddresses, AF_INET
 import base64
 
 import threading
+import asyncio
 
 import http.server
 
@@ -15,7 +16,7 @@ from random import random
 import socket
 import threading
 
-print_lock = threading.Lock()
+print_lock = threading.RLock()
 def dbgPrint(strn, *args):
 	with print_lock:
 		if args:
@@ -23,6 +24,7 @@ def dbgPrint(strn, *args):
 		else:
 			print( strn )
 		sys.stdout.flush()
+
 #import os
 #import getpass
 
@@ -109,25 +111,96 @@ PACKET_HEADER_SIZE = 6        # B B H B B format -> 6 bytes total
 
 strSendError = ""
 
-async def sendPkt(wSocket, pktNum, fromDevId, datInfoArr, fromDevType='s' ):
+
+import struct
+
+import struct
+
+import struct
+
+def sendPkt(wSocket, pktNum, fromDevId, datInfoArr, fromDevType='s'):
+	"""Synchronous version of sendPkt for a threaded custom WebSocket environment."""
 	global strSendError
-	if( pktNum >= 256 ):
+	if pktNum >= 256:
 		pktNum = 0
-	sendHdr = lPadStr( 3, str(pktNum) ) + lPadStr(4, str(fromDevId) )
+		
+	# 1. Ensure fromDevType is always a bytes object
+	if isinstance(fromDevType, str):
+		fromDevType_bytes = fromDevType.encode('utf-8')
+	else:
+		fromDevType_bytes = fromDevType
+
+	# 2. FIX: Since lPadStr outputs bytes, do NOT call .encode() on them!
+	# Concatenate them natively as bytes directly.
+	sendHdr_bytes = lPadStr(3, str(pktNum)) + lPadStr(4, str(fromDevId))
+	num_items_bytes = str(len(datInfoArr)).encode('utf-8')
+
+	# Combined cleanly as raw binary bytes
+	text_header_bytes = sendHdr_bytes + num_items_bytes + fromDevType_bytes
+
+	# 3. Compile the custom protocol data array payload
 	sendBytes = b''
-	for dInf in datInfoArr: #datInfoArr datType, datLen, dat
-		#print(dInf)
+	for dInf in datInfoArr:
 		datType = dInf[0]
 		datLen = dInf[1]
 		dat = dInf[2]
-		sendBytes += rPadStr(11, datType) + lPadStr(6, str(datLen)) + dat
+		
+		# Ensure elements are safely typed as bytes
+		if isinstance(datType, str):
+			datType_bytes = datType.encode('utf-8')
+		else:
+			datType_bytes = datType
+		
+		datLen_bytes = lPadStr(6, str(datLen))
+		
+		if isinstance(dat, str):
+			dat_bytes = dat.encode('utf-8')
+		else:
+			dat_bytes = dat
+		
+		# Decode only for the padding wrapper helper if it requires a string input
+		datType_str = datType_bytes.decode('utf-8', errors='ignore')
+		
+		# Combine the padded data block chunk
+		sendBytes += rPadStr(11, datType_str) + datLen_bytes + dat_bytes
+		
 	try:
-		await wSocket.send( sendHdr + str(len(datInfoArr)).encode('utf-8') + fromDevType.encode('utf-8') + sendBytes )
+		# 4. Merge text headers and body payload bytes
+		raw_payload_data = text_header_bytes + sendBytes
+		payload_len = len(raw_payload_data)
+		
+		# 5. BUILD THE REQUIRED WEBSOCKET FRAME ENVELOPE (RFC 6455 Spec)
+		ws_frame_header = bytearray()
+		ws_frame_header.append(0x82) # Fin bit = 1, Opcode = 2 (Binary Frame)
+		
+		if payload_len <= 125:
+			ws_frame_header.append(payload_len)
+		elif payload_len <= 65535:
+			ws_frame_header.append(126)
+			ws_frame_header.extend(struct.pack("!H", payload_len))
+		else:
+			ws_frame_header.append(127)
+			ws_frame_header.extend(struct.pack("!Q", payload_len))
+		
+		complete_ws_frame = bytes(ws_frame_header) + raw_payload_data
+		
+		# 6. Transmit down the network interface socket
+		if hasattr(wSocket, 'request'):
+			wSocket.request.sendall(complete_ws_frame)
+		else:
+			wSocket['handler'].request.sendall(complete_ws_frame)
+		
+		dbgPrint("sendPkt completed synchronously and sent frame data")
 		pktNum += 1
 	except Exception as e:
 		strSendError = str(e)
-		#None#print("sendPkt error: %s" % str(e) )
+		dbgPrint(f"sendPkt error: {strSendError}")
+		import traceback
+		traceback.print_exc()
+		
 	return pktNum
+
+
 
 def curMillis():
 	return int(datetime.now(tz=timezone.utc).timestamp() * 1000)
@@ -175,21 +248,65 @@ def start_http_server_in_new_thread(server_address, requestHandler):
 	backend_thread.daemon = True
 	backend_thread.start()
 	return backend_server, backend_thread  # Return server so we can shutdown
-"""
+
 #https://stackoverflow.com/questions/50120102/python-http-server-keep-connection-alive
-def start_http_server_in_new_thread(server_address,requestHandler):
-	backend_server = http.server.ThreadingHTTPServer(server_address, requestHandler)
-	context = get_ssl_context(certfile, keyfile)
-	backend_server.socket = context.wrap_socket(backend_server.socket, server_side=True)
-	f = lambda : backend_server.serve_forever()
-	backend_thread = threading.Thread(target=f)
-	backend_thread.daemon=True
-	backend_thread.start()
-	return backend_thread
-"""
+
 
 backend_thread = None
 webSocketSvrThread = None
 stop = 0
+
+import asyncio
+
+import threading
+import time
+import inspect
+
+
+
+import threading
+import time
+
+def acquireLocksAndRunFunction(locks, func, *args, **kwargs):
+	"""
+	Safely acquires an arbitrary list of threading.RLocks across multiple ports.
+	"""
+	acquired_locks = []
+	success = False
+
+	while not success:
+		try:
+			for lock in locks:
+				# 1. To safely check if another separate thread is holding the lock:
+				# RLock exposes an internal counter tracking ownership.
+				# If a different thread holds it, we must roll back to avoid cross-port deadlocks.
+				if lock._is_owned() and threading.get_ident() != lock._owner:
+					raise BlockingIOError("Lock is currently held by a different thread")
+				
+				# 2. Acquire normally since it belongs to us or is free
+				lock.acquire()
+				acquired_locks.append(lock)
+				
+			success = True
+		
+		except BlockingIOError:
+			# Release held items in reverse order to clear the queue
+			for lock in reversed(acquired_locks):
+				lock.release()
+			acquired_locks.clear()
+
+			# Pause briefly (5 milliseconds) to let competing threads finish their operations
+			time.sleep(0.005)
+	
+	try:
+		# Execute your shared state payload safely now that protection is verified
+		return func(*args, **kwargs)
+	finally:
+		# ALWAYS release every single lock in reverse order
+		for lock in reversed(acquired_locks):
+			try:
+				lock.release()
+			except RuntimeError:
+				pass
 
 

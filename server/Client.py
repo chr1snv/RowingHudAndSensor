@@ -1,5 +1,8 @@
 
 import networkCommon
+
+import Accounts
+
 import threading
 
 svrDevId = 1
@@ -16,10 +19,10 @@ LOGIN_AUTHKEY_IDX				= 3
 LOGIN_REMAINING_RESPONSES_IDX	= 4
 
 
-async def logoutClient(client):
+def logoutClient(client):
 	login = client.login
 	login[LOGIN_REMAINING_RESPONSES_IDX] = 0
-	client.sendPktIdx = await networkCommon.sendPkt(client.wSock, client.sendPktIdx, svrDevId, [('logout', 0, b'')] )
+	client.sendPktIdx = networkCommon.sendPkt(client.wSock, client.sendPktIdx, svrDevId, [('logout', 0, b'')] )
 	del activeClientLogins[login[LOGIN_AUTHKEY_IDX]]
 
 class Client:
@@ -48,9 +51,11 @@ class Client:
 		self.loginAttempts = 0
 		self.nextAllowedLoginAttemptTime = networkCommon.curMillis() + 1000
 
-	async def send( self, fromDevId, datInfoArr, sendWithoutAuth=False): #, auth ):
+	def send( self, fromDevId, datInfoArr, sendWithoutAuth=False): #, auth ):
 		okToSend = False
-		if self.wSock != None and not self.wSock.closed:
+		# FIX: Change 'not self.wSock.closed' to check the native socket stream state
+		# If the socket disconnects, socketserver shuts down or cleans self.wSock.request
+		if self.wSock is not None and hasattr(self.wSock, 'request') and self.wSock.request is not None:
 			if sendWithoutAuth:
 				okToSend = True
 			elif self.login != None: #should it be checked that self.login[LOGIN_AUTHKEY_IDX] == auth: ?
@@ -58,7 +63,7 @@ class Client:
 					self.login[LOGIN_REMAINING_RESPONSES_IDX] -= 1
 					okToSend = True
 				else:
-					await logoutClient(self)
+					logoutClient(self)
 					self.login = None #not sure if necessary because this client instance would then be garbage collected
 			else:
 				print("no login for cli not okToSend")
@@ -69,13 +74,14 @@ class Client:
 			if not sendWithoutAuth:
 				remPkts = str(self.login[LOGIN_REMAINING_RESPONSES_IDX]).encode('utf-8')
 				datInfoArr.append( ('remPkts', len(remPkts), remPkts) )
-			print("sending to %s %i" % (self.wSock.remote_address, self.sendPktIdx) )
-			self.sendPktIdx = await networkCommon.sendPkt(self.wSock, self.sendPktIdx, fromDevId, datInfoArr )
+			print("sending to %s %i" % (self.wSock.client_address, self.sendPktIdx) )
+			self.sendPktIdx = networkCommon.sendPkt(self.wSock, self.sendPktIdx, fromDevId, datInfoArr )
 			if self.login != None:
-				self.login[LOGIN_REMAINING_RESPONSES_IDX] -= 1
+				with Accounts.accounts_lock:
+					self.login[LOGIN_REMAINING_RESPONSES_IDX] -= 1
 
 
-clients_lock = threading.Lock()
+clients_lock = threading.RLock()
 #list of clients by ip address
 #used when logging in with username/password
 clients = {}

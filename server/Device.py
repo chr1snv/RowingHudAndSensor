@@ -320,7 +320,7 @@ def clearCompletedCommands(cmds, cmdValArr):
 
 
 
-devices_lock = threading.Lock()
+devices_lock = threading.RLock()
 devices = {}
 
 def GetOrAllocateDevice( devId ):

@@ -14,8 +14,8 @@ from http.cookies import SimpleCookie
 
 class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 	def __init__(self, request, client_address, server):
-		self.timeout = 5
-		request.settimeout(5)
+		#self.timeout = 10
+		#request.settimeout(10)
 		#enable http 1.1 to avoid tls and tcp setup time per request by 
 		self.protocol_version = 'HTTP/1.1' #keeping connections open until calling self.finish()
 		networkCommon.dbgPrint("HTTPAsyncHandler __init__")
@@ -53,13 +53,13 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 			self.end_headers()
 			f.close()
 			self.wfile.write(fileContents)
-			if closeConn:
-				self.close_connection = True
-				try:
-					self.wfile.flush()
-					self.request.close() 
-				except Exception as e:
-					networkCommon.dbgPrint( e )
+			#if closeConn:
+			#	self.close_connection = True
+			#	try:
+			#		self.wfile.flush()
+			#		self.request.close() 
+			#	except Exception as e:
+			#		networkCommon.dbgPrint( e )
 			return
 		
 		f = open(filePathStr)
@@ -95,8 +95,13 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 			getKeyValid = False
 			
 			
-			# 1. Look for the cookie in the incoming HTTP request headers
-			if "Cookie" in self.headers:
+			if len(parts) > 2:
+				getKey = parts[-1].encode('utf-8')
+				(client,pktAuth) = Accounts.ClientAndPktAuthFromGetKey( getKey )
+				getKeyValid = len(pktAuth) > 0
+			
+			# Look for the cookie in the incoming HTTP request headers
+			elif "Cookie" in self.headers:
 				cookie = SimpleCookie(self.headers["Cookie"])
 				if "auth_key" in cookie:
 					cookie_key = cookie["auth_key"].value.encode('utf-8')
@@ -106,11 +111,8 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					if pktAuth:
 						getKeyValid = True
 			
-			elif len(parts) > 2:
-				getKey = parts[-1].encode('utf-8')
-				(client,pktAuth) = Accounts.ClientAndPktAuthFromGetKey( getKey )
-				getKeyValid = len(pktAuth) > 0
 			networkCommon.dbgPrint('parts %s parts[-2] %s getKeyValid %i' % (str(parts), str(parts[-2]), getKeyValid) )
+
 
 			if getKeyValid: #then allowed to request the following
 				if parts[1] == "theFrayen.html":
@@ -293,8 +295,12 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 			else: # the login page
 				networkCommon.dbgPrint( "reply with login.html getKeyValid %i" % getKeyValid )
 				self.replyWithStartFile( "login.html", True )
+				#self.close_connection = True
 				self.finish()
-			
+
+			self.close_connection = True
+			self.wfile.flush()
+			self.request.close()
 			networkCommon.dbgPrint("end get handler")
 
 		except Exception as e:#@IOError:

@@ -56,7 +56,7 @@ function socketCloseAndRetryConnect(){
 	if( socketInstance != null )
 		socketInstance.close();
 	socketInstance = null;
-	setTimeout(function(){sendQueuedMessagesToServerOverWebsocket()},1000+Math.random()*1000);
+	setTimeout(function(){sendQueuedMessagesToServerOverWebsocket()},1000+Math.random()*500);
 }
 
 var webSocketOnMessage = null;
@@ -76,13 +76,15 @@ function sendQueuedMessagesToServerOverWebsocket( signalingMessage=null ){
 		socketInstance.binaryType = 'arraybuffer';
 		
 		socketInstance.onopen = () => {
-			console.log( "socketInstance connection opened");
-			sendAllQueuedMessagesOverWebsocket();
+			console.log("socketInstance connection opened");
+			setTimeout(() => {
+				sendAllQueuedMessagesOverWebsocket();
+			}, 10);
 		}
 
 
 		socketInstance.onerror = (event) => {
-			console.log("socketInstance.onerror " + event.data);
+			console.log("socketInstance.onerror " + event);
 			let nAtElm = document.getElementById("networkAuthText");
 			nAtElm.innerHTML = "websocket, certificate may need to be accepted - or server error";
 			let nALElm = document.getElementById("networkAuthLink");
@@ -292,7 +294,7 @@ function finishUrlGoto(key, pendingUrlRequest){
 			getStr += "&" + additionalArgs[i][0] + "=" + additionalArgs[i][1];
 		}
 	}
-	document.location.href = getStr;// + "?" + key;
+	document.location.href = getStr + "?" + key;
 	pendingUrlRequest = [];
 }
 
@@ -334,12 +336,14 @@ function pageBackKeyObtained(key){
 }
 
 window.onload = function(event){
-	//clear the used auth key from the url bar
-	window.history.replaceState( {}, document.title, window.location.pathname )
+	if( typeof isLoginPage !== "undefined" ){
+		//clear the used auth key from the url bar
+		window.history.replaceState( {}, document.title, window.location.pathname )
 
-	let appendInfo = [ pageBackKeyObtained, ];
-	pendingFileRequests.push( appendInfo );
-	sendCmd('getKey');
+		let appendInfo = [ pageBackKeyObtained, ];
+		pendingFileRequests.push( appendInfo );
+		sendCmd('getKey');
+	}
 }
 
 

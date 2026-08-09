@@ -98,7 +98,7 @@ def fillNewBoatVals( newBoat, valBytes ):
 	except Exception as e:
 		print( "fillValues error %s" % str(e) )
 
-boats_lock = threading.Lock()
+boats_lock = threading.RLock()
 boats = {}
 boatsById = {}
 lastAllocatedBoatId = -1
