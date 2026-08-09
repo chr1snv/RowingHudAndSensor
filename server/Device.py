@@ -75,13 +75,13 @@ class Device:
 
 
 
-	async def send( self, fromDevId, datInfoArr ):
+	def send( self, fromDevId, datInfoArr ):
 		if self.wSock != None:
 			#print("send to device " )
 			#print(datInfoArr)
 			prevPktIdx = self.sendPktIdx
 			print( self.sendPktIdx )
-			self.sendPktIdx = await networkCommon.sendPkt(self.wSock, self.sendPktIdx, fromDevId, datInfoArr )
+			self.sendPktIdx = networkCommon.sendPkt(self.wSock, self.sendPktIdx, fromDevId, datInfoArr )
 			print( self.sendPktIdx ) 
 			if self.sendPktIdx != prevPktIdx:
 				return True

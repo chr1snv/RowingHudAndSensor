@@ -120,7 +120,9 @@ def msgHandler(websocket, msg, client_ip_address):
 							ClientWebsockHandler.handleClientWebsockRequests,
 							websocket,
 							pktAuth,
-							datType
+							datType,
+							datLen,
+							datStr
 							)
 					
 			elif fromDorC == ord('f'):

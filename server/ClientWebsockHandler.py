@@ -1,8 +1,10 @@
 import Client
 import Accounts
 import networkCommon
+import BoatWebsockHandler
+import DeviceWebsockHandler
 
-def handleClientWebsockRequests(websocket, pktAuth, datType):
+def handleClientWebsockRequests(websocket, pktAuth, datType, datLen, datStr):
 	client = Client.activeClientLogins[pktAuth]
 	client.wSock = websocket
 	networkCommon.dbgPrint('pktAuth valid')

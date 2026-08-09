@@ -20,9 +20,9 @@ class FileServer:
 		self.lastCommTime = None
 
 
-	async def send( self, fromDevId, datInfoArr ):
+	def send( self, fromDevId, datInfoArr ):
 		if self.wSock != None:
-			self.sendPktIdx = await networkCommon.sendPkt(self.wSock, self.sendPktIdx, fromDevId, datInfoArr )
+			self.sendPktIdx = networkCommon.sendPkt(self.wSock, self.sendPktIdx, fromDevId, datInfoArr )
 
 fileSvrs_lock = threading.RLock()
 

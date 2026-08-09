@@ -59,9 +59,8 @@ function socketCloseAndRetryConnect(){
 	setTimeout(function(){sendQueuedMessagesToServerOverWebsocket()},1000+Math.random()*500);
 }
 
-nAtErrShown = false;
-nAtElm = document.getElementById("networkAuthText");
-nALElm = document.getElementById("networkAuthLink");
+
+
 function hideWebsocketErrorMessage(){
 	if( nAtErrShown ){
 		nAtElm.innerText = '';
@@ -352,6 +351,9 @@ function pageBackKeyObtained(key){
 }
 
 window.onload = function(event){
+	nAtErrShown = false;
+	nAtElm = document.getElementById("networkAuthText");
+	nALElm = document.getElementById("networkAuthLink");
 	if( typeof isLoginPage !== "undefined" ){
 		//clear the used auth key from the url bar
 		window.history.replaceState( {}, document.title, window.location.pathname )

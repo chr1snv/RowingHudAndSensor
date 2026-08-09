@@ -3,7 +3,6 @@ from netifaces import interfaces, ifaddresses, AF_INET
 import base64
 
 import threading
-import asyncio
 
 import http.server
 
@@ -111,10 +110,6 @@ PACKET_HEADER_SIZE = 6        # B B H B B format -> 6 bytes total
 
 strSendError = ""
 
-
-import struct
-
-import struct
 
 import struct
 
@@ -255,13 +250,6 @@ def start_http_server_in_new_thread(server_address, requestHandler):
 backend_thread = None
 webSocketSvrThread = None
 stop = 0
-
-import asyncio
-
-import threading
-import time
-import inspect
-
 
 
 import threading

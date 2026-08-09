@@ -54,7 +54,7 @@ class BinaryRequestHandler(socketserver.StreamRequestHandler):
 					return
 
 			handshake_text = handshake_data.decode('utf-8', errors='ignore')
-			print(handshake_text)
+			#print(handshake_text)
 			
 			# 2. EXTRACT THE WEBSOCKET SECURITY KEY
 			ws_key = None
@@ -172,5 +172,5 @@ def startWebsocketServer_in_new_thread(port):
 	server_thread = threading.Thread(target=tcp_server.serve_forever)
 	server_thread.daemon = True
 	server_thread.start()
-	networkCommon.dbgPrint(f"starting startWebsocketServer_in_new_thread at {server_address[0]} port {server_address[1]}")
+	networkCommon.dbgPrint(f"starting WebsocketServer at {server_address[0]} port {server_address[1]}")
 	return tcp_server, server_thread
