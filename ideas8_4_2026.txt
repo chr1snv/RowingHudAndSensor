@@ -1,0 +1,78 @@
+ideas for rowing sim/manager
+
+
+maintanace - (timestamps)
+	damage report
+		attach images/video and description of problem
+	repair / maintainace log
+		pictures of condition after repair and notes
+	ongoing notes on boat known conditions,
+	per seat settings / adjustments for team members
+
+
+
+visual graphics / themes / music
+
+wooden boathouse
+
+rafters, sense of infinity where different boats are in racks / rows
+
+animation where boat hangs on lines and drops into water
+
+space arena, large high walled / sided channel where races take place
+
+
+
+
+8_6_2026
+
+rowing sim - pick different rowers with ai models trained on 
+	pertubations/inputs -> reactions and put them in virtual races to view how they compare
+
+fluid sim showing how oars react to different inputs/forces/angles through the
+water
+
+
+intro theme 
+	oars move
+	character in boat on the water
+	rowing around tropical island
+	
+select character, body size, proportions, gender
+
+
+
+
+8_9_2026
+
+themes, enviroments
+space hangar / boat house
+endless expanse / ambient music with reverb giving a relaxing space where it feels like everything is possible
+
+music like 
+	Not Quite Rock https://www.youtube.com/watch?v=oAmgDJBbbY0
+	Orbital Odyssey https://www.youtube.com/watch?v=l6Qaq5yaLPo
+
+Intro page could have a 3d character in ambient lit enviroment
+teases until logging in, comes up to the camera and bites / swollows it, page then goes to
+app, device, settings selection 
+
+note 8_10_2026 themes/characters/animations (maybe off topic / too much / in-appropriate and divide app users
+(want to encourage users to be excited, and behaviour towards eachother that builds community), 
+app should be built in layers with basic functions in
+before adding themes characters, animations etc
+
+
+
+8_10_2026
+
+health analyizer, if someone is doing well / tired / ate / hydrated enough before
+or is showing symptoms (depression/letharga/congestion / different speech / mood) of stomach / respitory / other illness
+-> estimate how much energy / stamina they have to pull with
+
+oar depth in water and catch analyizer
+(notify if oar is properly squared and buried to correct depth to let person know if ok to pull)
+
+stern / external cameras to capture other boat and measure their speed / distance per stroke
+give indication of how many strokes and what pressure/energy per stroke they are leading by
+

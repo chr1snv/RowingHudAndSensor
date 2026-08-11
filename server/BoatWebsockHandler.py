@@ -15,8 +15,8 @@ def sendSelectedBoatInfo(client, boatId):
 			selBoat.NumSeats,
 			selBoat.numDevices )
 		#gather info about each device in the boat
-		for devLoc in selBoat.devices:
-			devLocDevices = selBoat.devices[devLoc]
+		for devLoc in selBoat.deviceHierarchy:
+			devLocDevices = selBoat.deviceHierarchy[devLoc]
 			for devRole in devLocDevices:
 				devId = devLocDevices[devRole]
 				devMsgBytes = struct.pack("<IBB",
@@ -37,7 +37,11 @@ def handleWebSockClientDeviceRequests( client, datType, datStr ):
 		sendSelectedBoatInfo(client, client.selectedBoat)
 
 	elif datType.startswith(b'BoatAddDev'): #add selected device id device to boat with role
-		Boat.assignDeviceToBoat(client.selectedBoat, datStr)
+		Boat.assignDeviceToLocationWithRole(client.selectedBoat, datStr)
+		sendSelectedBoatInfo(client, client.selectedBoat)
+		
+	elif datType.startswith(b'BoatRemDev'): #remove selected device
+		Boat.removeDeviceAtLocationAndRoleFromBoat( client.selectedBoat, datStr )
 		sendSelectedBoatInfo(client, client.selectedBoat)
 
 	elif datType.startswith(b'BoatSelBoat'):

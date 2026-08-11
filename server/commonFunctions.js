@@ -102,10 +102,10 @@ function sendQueuedMessagesToServerOverWebsocket( signalingMessage=null ){
 			nALElm.href = url;
 			nALElm.innerText = url;
 			nAtErrShown = true;
-			clearTimeout( socketErrorTimeoutHandle );
-			socketErrorTimeoutHandle = setTimeout( 
-				hideWebsocketErrorMessage(),
-				5000 );
+			//clearTimeout( socketErrorTimeoutHandle );
+			//socketErrorTimeoutHandle = setTimeout( 
+			//	hideWebsocketErrorMessage(),
+			//	5000 );
 			socketCloseAndRetryConnect();
 		}
 

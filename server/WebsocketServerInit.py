@@ -28,10 +28,16 @@ class ThreadedBinaryTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServe
 				# Atomically upgrade the connection to an SSL/TLS socket
 				newsock = self.ssl_context.wrap_socket(newsock, server_side=True)
 			except Exception as e:
-				print(f"SSL Handshake failed for client {fromaddr}: {e}")
+				print(f"SSL Handshake failed for client {fromaddr} (Likely browser ssl cert rejection): {e}")
 				# Properly clean up the socket if the handshake aborts
-				newsock.close()
-				raise e
+				try:
+					newsock.close()
+				except:
+					pass
+				# Return a dummy dead socket to allow socketserver to cycle without breaking
+				dummy_sock = socket.socket()
+				dummy_sock.close()
+				return dummy_sock, fromaddr
 		return newsock, fromaddr
 
 class BinaryRequestHandler(socketserver.StreamRequestHandler):

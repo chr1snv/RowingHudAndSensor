@@ -141,7 +141,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					self.wfile.write(("<h2 id=\"fSvrId\">" + str(fSvrId) + "</h2>").encode('utf-8'))
 					networkCommon.dbgPrint("finishing writing fileViewer.html")
 					self.finish()
-					return
+					#return
 				elif parts[1] == "camControl.html": #device control page
 					#self.path has /index.htm
 					devId = int(parts[3])
@@ -158,7 +158,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					networkCommon.dbgPrint("finishing writing camControl.html")
 					self.replyWithFile( "camControlEnd.html", True )
 					networkCommon.dbgPrint( " camControl devId : %i cliId : %i  cli.devId : %i" % (Client.clients[cliId].devId, Client.clients[cliId].cliId, Client.clients[cliId].devId) )
-					return
+					#return
 
 				elif parts[1] == "rowing.html": #device control page
 					
@@ -195,7 +195,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					self.replyWithFile( "rowingEnd.html", True )
 					networkCommon.dbgPrint("finishing writing rowing.html")
 					#print( " rowing devId : %i cliId : %i  cli.devId : %i" % (Client.clients[cliId].devId, Client.clients[cliId].cliId, Client.clients[cliId].devId) )
-					return
+					#return
 
 				elif parts[1] == "devSelection.html": #the index / device selection / overview page
 					self.send_response(200)
@@ -273,7 +273,7 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 					self.wfile.write(output.getvalue().encode('utf-8'))
 					self.finish()
 
-					return
+					#return
 
 			elif parts[-1].endswith(".js") or parts[-1].endswith(".vsh") \
 				or parts[-1].endswith(".fsh") or parts[-1].endswith(".hvtScene")\
@@ -298,11 +298,14 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 				#self.close_connection = True
 				self.finish()
 
-			self.close_connection = True
-			self.wfile.flush()
-			self.request.close()
-			networkCommon.dbgPrint("end get handler")
+
 
 		except Exception as e:#@IOError:
 			networkCommon.dbgPrint(e)
 			#self.send_error(404,'File Not Found: %s' % self.path)
+		
+		#other function exits / returns should be commented out so connection is always closed
+		self.close_connection = True
+		self.wfile.flush()
+		#self.request.close()
+		networkCommon.dbgPrint("end get handler")

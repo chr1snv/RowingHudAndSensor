@@ -1,0 +1,105 @@
+	</table>
+
+	<h2 id="createNewBoatHdgText" onclick="showHideCreateNewBoat()" style="background-color:#333333; border-radius:10px; width:500px; margin:auto; cursor:pointer; user-select:none;">> Create New Boat</h2>
+	<div id="createNewBoatDiv" style="border-style: solid; border-width: 1px; border-radius: 20px; width: 500px; margin: auto; display: none;">
+	<table style="text-align:right;">
+		<tr><td>New Boat Name</td>						<td><input id='newBoatName' /></td></tr>
+		<tr><td>Length(m)</td>							<td><input id='newBoatLength' style="width:90px;"/></td>
+		<tr><td>Rigger Dist From Centerline(m)</td>		<td><input id='newBoatRiggerDistFromCenterline' style="width:90px;"/></td>
+		<tr><td>Stroke side</td>						<td><select id='newBoatStrokeSide' /><option>Starboard</option><option>Port</option></select></td></tr>
+		<tr><td>Oars Per Seat</td>						<td><select id="newBoatOarsPerSeat" style="width:90px;"><option>1</option><option>2</option></select></td></tr>
+		<tr><td>Oar Length(m)</td>						<td><input id='newBoatOarLength' style="width:90px;"/></td></tr>
+		<tr><td>Collar Dist From Handle End(m)</td>		<td><input id='newBoatCollarDistFromHandleEnd' style="width:90px;"/></td></tr>
+		<tr><td>Num Seats</td>							<td><select id="newBoatNumSeats" style="width:90px;">
+															<option>1</option><option>2</option><option>3</option>
+															<option>4</option><option>5</option><option>6</option>
+															<option>7</option><option>8</option><option>9</option>
+															<option>10</option>
+															</select></td></tr>
+		<tr><td>Stroke Rigger Dist From Stern(m)</td>	<td><input id='newBoatStrokeRiggerDistFromStern' style="width:90px;"/></td></tr>
+
+		<tr><td></td><td><button onclick="createBoat( )" >Create Boat</button></td></tr>
+		</tr>
+	</table>
+	</div>
+	<h1>Selected Boat</h1>
+	<table id="selBoatTbl" style="display: none;">
+		<tr><td>
+			<table id="selBoatTbl_HullInfo" style="border: 1px solid #ccc; border-radius: 12px; border-spacing: 0; overflow: hidden; width: 500px;" onclick="selBoatTblClicked(this)">
+				<tr>
+					<td style="border-bottom: 1px solid white; padding: 8px;">Name</td>
+					<td style="border-bottom: 1px solid white; padding: 8px;">Length(m)</td>
+					<td style="border-bottom: 1px solid white; padding: 8px;">Stroke Side</td>
+					<td style="border-bottom: 1px solid white; padding: 8px;">Num Seats</td>
+				</tr>
+				<tr>
+					<td id="selBoatName" 	 style="border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;"></td>
+					<td id="selBoatLen" 	 style="border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;"></td>
+					<td id="selBoatStrkSd"   style="border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;"></td>
+					<td id="selBoatNumSeats" style="border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;"></td>
+				</tr>
+			</table>
+		</td></tr>
+		<tr><td id="selBoatTbl_Expand_Hull" onclick="showHideSelBoatTbl(this, 'selBoatTbl_Hull_Devs', 'Hull')">V Hull</td></tr>
+			<table id ="selBoatTbl_Hull_Devs">
+				<tr>
+					<td>
+						<table>
+							<table id="selBoatTbl_Hull_Dev0" style="border: 1px solid #ccc; border-radius: 12px; border-spacing: 0; overflow: hidden; width: 500px;" onclick="selBoatTblClicked(this)">
+								<tr>
+									<td style="border-bottom: 1px solid white; padding: 8px;">Dev Location</td>
+									<td style="border-bottom: 1px solid white; padding: 8px;">Dev Role</td>
+									<td style="border-bottom: 1px solid white; padding: 8px;">Dev Name</td>
+									<td style="border-bottom: 1px solid white; padding: 8px;">Dev Id</td>
+									<td style="border-bottom: 1px solid white; padding: 8px;">Remove</td>
+								</tr>
+								<tr>
+									<td id="selBoatDevLoc0" style="border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;">Hull</td>
+									<td id="selBoatDevRole0" style="border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;">MasterIMU</td>
+									<td id="selBoatDevName0" style="border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;"></td>
+									<td id="selBoatDevId0"   style="border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;"></td>
+									<td id="selBoatDevId0"   style="border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;" onclick="selBoatTblRemove('selBoatTbl_HullMasterIMU')">X</td>
+								</tr>
+							</table>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</td></tr>
+	</table>
+
+	<h1>Avaliable Devices</h1>
+	<p>device will be added to Selected Part of Active Boat as role</p>
+	<table>
+		<tr>
+			<td>As Role</td>
+			<td><select id='devAddAsRole'>
+				<option>HUD</option>
+				<option>STBOar</option>
+				<option>PORTOar</option>
+				<option>SeatSlideSensor</option>
+				<option>MasterIMU</option>
+				<option>Radar</option>
+				<option>Camera</option>
+				</select>
+			</td>
+		</tr>
+		<tr>
+			<td>At Position</td>
+			<td><select id='devAddAtSeat'>
+				<option>Coach</option>
+				<option>Hull</option>
+				<option>Coxan</option>
+				<option>1</option>
+				<option>2</option>
+				<option>3</option>
+				<option>4</option>
+				<option>5</option>
+				<option>6</option>
+				<option>7</option>
+				<option>8</option>
+				</select>
+			</td>
+		</tr>
+	</table>
+	<table>

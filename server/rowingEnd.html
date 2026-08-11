@@ -3,7 +3,7 @@
 	<script src="HavenTech/NetworkCommunications/Iohelpers.js"></script>
 	<script src="HavenTech/jszip.min.js"></script>
 	<script src="HavenTech/wink-nlp-bundle.umd.js"></script>
-	<canvas id="frayenCanvas" width=640px; height=480px; style="width:640px; height:480px;"></canvas>
+	<canvas id="frayenCanvas" width=640px; height=480px; style="width:640px; height:480px; margin:auto;"></canvas>
 
 	<script>
 		//create/new boat input elements
@@ -21,6 +21,7 @@
 		newBoatStrkDstStrnElm	= document.getElementById( "newBoatStrokeRiggerDistFromStern" );
 
 		//selected boat display elements
+		selBoatTblElm			= document.getElementById( "selBoatTbl" );
 		selBoatNameElm			= document.getElementById( "selBoatName" );
 		selBoatLenElm			= document.getElementById( "selBoatLen" );
 		selBoatStrkSdElm		= document.getElementById( "selBoatStrkSd" );
@@ -120,6 +121,9 @@
 		let selBoatDevsTableElm = document.getElementById( "selBoatDevs" );
 		function handleBoatSelectedSvrResp(msgBytes){
 			let v = new DataView(msgBytes);
+			selBoatTblElm.style.display =  '';
+			
+			console.log( "handleBoatSelectedSvrResp" );
 
 			//read values from the message and fill the information indication for the selected boat
 			let offset = 0;
@@ -132,13 +136,18 @@
 			offset += 1;
 			selBoatNumSeatsElm.innerText 	= v.getUint8(offset);
 			offset += 1;
+			
+			//selBoatTbl_HullInfo
+			//selBoatTbl_Hull_Devs
+			//	selBoatTbl_Hull_MasterIMU
+			
 			let numDevices = v.getUint8(offset);
 			offset += 1;
 			for( let i = 0; i < numDevices; ++i ){
-				let devLocElm    = document.getElementById("selBoatDevLoc"+i);
-				let devRoleElm = document.getElementById("selBoatDevRole"+i);
-				let devNameElm = document.getElementById("selBoatDevName"+i);
-				let devIdElm   = document.getElementById("selBoatDevId"+i);
+				let devLocElm    = document.getElementById("selBoatTbl_"+devLoc+"_"+devRole+"_Loc");
+				let devRoleElm = document.getElementById("selBoatTbl"+devLoc+"_"+devRole+"_Role");
+				let devNameElm = document.getElementById("selBoatDevName"+devLoc+"_"+devRole+"_Name");
+				let devIdElm   = document.getElementById("selBoatDevId"+devLoc+"_"+devRole+"_Id");
 
 				if( devLocElm == null ){
 					//create new row and table divs for device number i
@@ -161,17 +170,57 @@
 				devLocElm.innerText  = devLoc;
 				devIdElm.innerText   = devId;
 				devRoleElm.innerText = devRole;
+
+				//read num sub devices for deivce i
+				let numSubDevs = v.getUint8(offset);
+				offset += 1;
+				console.log( numSubDevs );
+				for( let j = 0; j < numSubDevs; ++i ){
+					
+				}
 			}
 
+		}
+		
+		function showHideSelBoatTbl(showHideBtn, tblElmId, lblTxt ){
+			tblToShowHideElm = document.getElementById( tblElmId );
+
+			if( tblToShowHideElm.style.display == "none" ){
+				tblToShowHideElm.style.display="";
+				showHideBtn.innerHTML = "V " + lblTxt;
+			}else{
+				tblToShowHideElm.style.display="none";
+				showHideBtn.innerHTML = "> " + lblTxt;
+			}
+		}
+		
+		selBoatTblElms = [];
+		function getHieracyOfSelBoatElms(){
+			document.getElementById("selBoatTbl")
+		}
+		
+		
+		function selBoatTblClicked(elm){
+			console.log("selBoatTblClicked" + elm);
+			for( let i =0; i < selBoatTblElms; ++i ){
+				selBoatTblElms[i].style.background = '';
+			}
+			elm.style.background = "#333333";
+			
 		}
 
 		const boatDevRoles = Object.freeze({
 			HUD		:0,
 			STBOar	:1,
-			PORTOar	:2
+			PORTOar	:2,
+			SeatSlideSensor:3,
+			MasterIMU:4,
+			Radar:5,
+			Camera:6
 		});
+		const idxToBoatDevRoles = Object.keys(boatDevRoles);
 
-		const devLocationRoles = Object.freeze({
+		const boatDevLocations = Object.freeze({
 			Coach	:0,
 			Hull	:1,
 			Coxan	:2,
@@ -184,6 +233,14 @@
 			7		:9,
 			8		:10
 		});
+		const idxToDevLocations = Object.keys(boatDevLocations);
+
+		const AllowedRolesAtPosition = Object.freeze( {
+			Coach:	[boatDevRoles.HUD],
+			Hull:	[boatDevRoles.MasterIMU, boatDevRoles.Radar, boatDevRoles.Camera],
+			Coxan:	[boatDevRoles.HUD, boatDevRoles.Camera],
+			1:		[boatDevRoles.HUD, boatDevRoles.STBOar, boatDevRoles.PORTOar, boatDevRoles.SeatSlideSensor, boatDevRoles.Camera]
+		} );
 
 		const devAddAsRoleElm = document.getElementById( 'devAddAsRole' );
 		const devAddAtSeatElm = document.getElementById( 'devAddAtSeat' );
@@ -194,11 +251,32 @@
 			offset += 4;
 			boatMsgView.setUint8( offset, boatDevRoles		[ devAddAsRoleElm.value ]  );
 			offset += 1;
-			boatMsgView.setUint8( offset, devLocationRoles	[ devAddAtSeatElm.value ] );
+			boatMsgView.setUint8( offset, boatDevLocations	[ devAddAtSeatElm.value ] );
 			offset += 1;
 			boatMsgLength = offset;
 
 			sendCmd( 'BoatAddDev', boatMsgUint8Array, boatMsgLength, true );
+		}
+
+
+		function selBoatTblRemove(tblElmId){
+			let elm = document.getElementById( tblElmId );
+			console.log( elm.children.length );
+			let devPosition = boatDevLocations[elm.children[0].children[1].children[0].innerText];
+			let devRole = boatDevRoles[elm.children[0].children[1].children[1].innerText];
+			let devId  = elm.children[0].children[1].children[3].innerText;
+			
+			let offset = 0;
+			boatMsgView.setUint32( offset, devId );
+			offset += 4;
+			boatMsgView.setUint8( offset, devRole );
+			offset += 1;
+			boatMsgView.setUint8( offset, devPosition );
+			offset += 1;
+			
+			boatMsgLength = offset;
+			
+			sendCmd( 'BoatRemDev', boatMsgUint8Array, boatMsgLength, true );
 		}
 
 
