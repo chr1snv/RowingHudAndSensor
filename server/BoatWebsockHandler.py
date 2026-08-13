@@ -3,6 +3,28 @@ import struct
 
 import Boat, Client
 
+import networkCommon
+
+"""
+#assign the device to that location
+	hierarchDevPar = None
+	if devParentIdx in selBoat.deviceHierarchy:
+		 hierarchDevPar = selBoat.deviceHierarchy[devParentIdx]
+	else:
+		hierarchDevPar = {}
+		selBoat.deviceHierarchy[devParentIdx] = hierarchDevPar
+	
+	
+	if not (devLocationIdx in hierarchDevPar):
+		hierarchDevPar[devLocationIdx] = { devRoleIdx:devId }
+	else:
+		hierarchDevPar[devLocationIdx][devRoleIdx] = devId #get the devLocationIdx dictionary because there may be multiple devRoles there
+		
+	need to know the hierarchy because it will affect how packets are routed
+	how is the tree of devices sent? depth first, breadth first?
+	depth first is simpler (
+"""
+
 
 def sendSelectedBoatInfo(client, boatId):
 		selBoat = Boat.boatsById[boatId] #get the boat using it's id
@@ -17,13 +39,14 @@ def sendSelectedBoatInfo(client, boatId):
 		#gather info about each device in the boat
 		for devLoc in selBoat.deviceHierarchy:
 			devLocDevices = selBoat.deviceHierarchy[devLoc]
+			networkCommon.dbgPrint( "packing info for location %i len(devLocDevices): %i" % ( devLoc, len(devLocDevices) ) )
 			for devRole in devLocDevices:
 				devId = devLocDevices[devRole]
 				devMsgBytes = struct.pack("<IBB",
 					devId,
 					devLoc,
 					devRole )
-			selectedBoatMsgBytesToClient += devMsgBytes
+				selectedBoatMsgBytesToClient += devMsgBytes
 		client.send(Client.svrDevId, [('BoatSelBoat', len(selectedBoatMsgBytesToClient), selectedBoatMsgBytesToClient)])
 
 def handleWebSockClientDeviceRequests( client, datType, datStr ):

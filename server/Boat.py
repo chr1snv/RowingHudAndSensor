@@ -29,50 +29,71 @@ class Boat:
 
 
 DEV_ROLE_TO_IDX = {
-	"HUD"				:0,
-	"STBOar"			:1,
-	"PORTOar"			:2,
-	"SeatSlideSensor"	:3,
-	"MasterIMU"			:4,
-	"Radar"				:5,
-	"Camera"			:6
+	"MasterAccelGyroMag"	:0,
+	"HUD"					:1,
+	"STBOarAccelGyroMag"	:2,
+	"STBOarForce"			:3,
+	"PORTOarAccelGyroMag"	:4,
+	"PORTOarForce"			:5,
+	"SeatPositonSensor"		:6,
+	"SeatForceSensor"		:7,
+	"Microphone"			:8,
+	"Sonar"					:9,
+	"Radar"					:10,
+	"Lidar"					:11,
+	"CameraRGBD"			:12,
+	"CameraThermal"			:13,
+	"CameraInfared"			:14,
+	"CameraRGB"				:15,
+	"CameraUV"				:16,
+	"MassSpec"				:17,
+	"BreathCO2"				:18,
+	"BreathO2"				:19,
+	"EKG"					:20,
+	"ECG"					:21,
+	"BloodGlucose"			:22,
+	"BloodO2"				:23,
+	"SkinConductivity"		:24
 }
 IDX_TO_BOAT_DEV_ROLES = list(DEV_ROLE_TO_IDX.keys())
 
 
 DEV_LOCATION_TO_IDX = {
-	"Coach"	:0,
-	"Hull"	:1,
-	"Coxan"	:2,
-	1		:3,
-	2		:4,
-	3		:5,
-	4		:6,
-	5		:7,
-	6		:8,
-	7		:9,
-	8		:10
+	"Boat"	:0,
+	"Coach"	:1,
+	"Hull"	:2,
+	"Coxan"	:3,
+	"1"		:4,
+	"2"		:5,
+	"3"		:6,
+	"4"		:7,
+	"5"		:8,
+	"6"		:9,
+	"7"		:10,
+	"8"		:11
 }
-IDX_TO_DEV_LOCATION_TYPES = list(DEV_LOCATION_TO_IDX.keys())
+IDX_TO_DEV_LOCATION = list(DEV_LOCATION_TO_IDX.keys())
 
 ALLOWED_ROLES_AT_LOCATION = {
-	"Coach":	[ DEV_ROLE_TO_IDX["HUD"] 																																],
-	 "Hull":	[ DEV_ROLE_TO_IDX["MasterIMU"],	DEV_ROLE_TO_IDX["Radar"],	DEV_ROLE_TO_IDX["Camera"]																	],
-	"Coxan":	[ DEV_ROLE_TO_IDX["HUD"],		DEV_ROLE_TO_IDX["Camera"]																								],
-		"1":	[ DEV_ROLE_TO_IDX["HUD"],		DEV_ROLE_TO_IDX["STBOar"],	DEV_ROLE_TO_IDX["PORTOar"], DEV_ROLE_TO_IDX["SeatSlideSensor"], DEV_ROLE_TO_IDX["Camera"]	]
+	"Coach":	[1 																		 ],
+	 "Hull":	[0, 8, 9, 10, 11, 12, 13, 14, 15, 16									 ],
+	"Coxan":	[1, 15																	 ],
+		"1":	[ 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24] #hud, oar, seat, camera, physiology and chem sensors
 }
 
+#every location can have one parent
 LOCATION_PARENTS = {
+	"Coach" : "Boat",
+	"Hull"	: "Boat",
 	"Coxan" : "Hull",
 	"1"		: "Hull"
 }
-
+#locations may have multiple children
 LOCATION_CHILDREN = {
-	"Hull"	: "Coxan",
+	"Boat"	: [ "Coach", "Hull", "Coxan" ],
+	"Hull"	: [ "Coxan", "1" ],
 	"Hull"	: "1"
 }
-
-
 
 
 def removeDeviceAtLocationAndRoleFromBoat( boatId, datBytes ):
@@ -82,16 +103,24 @@ def removeDeviceAtLocationAndRoleFromBoat( boatId, datBytes ):
 		locationIdx
 	) = struct.unpack( "<IBB", datBytes )
 	selBoat = boatsById[boatId]
-	networkCommon.dbgPrint( "removeDeviceAtLocationAndRoleFromBoat %i %i %i" % (devId, roleIdx, locationIdx) )
+	networkCommon.dbgPrint( "removeDeviceAtLocationAndRoleFromBoat boatId: %i numDevs: %i devId: %i  role: %i  location: %i" % (boatId, selBoat.numDevices, devId, roleIdx, locationIdx) )
 	
-	if not (locationIdx in selBoat.devicesByLocation):
-		return
-	devLocDevices = selBoat.devicesByLocation[locationIdx]
-	if not (roleIdx in devLocDevices):
-		return
-	del devLocDevices[roleIdx]
-	selBoat.numDevices -= 1
+	if locationIdx in selBoat.devicesByLocation:
+		devLocDevices = selBoat.devicesByLocation[locationIdx]
+		if roleIdx in devLocDevices:
+			del devLocDevices[roleIdx]
+			selBoat.numDevices -= 1
+	print( "numDevs after remove attempt %i " % selBoat.numDevices )
+	
 
+
+def findPathOfLocation( path, rootIdx, locIdx ):
+	path.append( locIdx )
+	curIdx = locIdx
+	while curIdx != rootIdx:
+		curIdx = DEV_LOCATION_TO_IDX [ LOCATION_PARENTS [ IDX_TO_DEV_LOCATION[ curIdx ] ] ]
+		path.append( curIdx )
+	#list(reversed(path)) #to get parent -> leaf order
 
 def assignDeviceToLocationWithRole( boatId, datBytes ):
 	selBoat = boatsById[boatId]
@@ -103,7 +132,7 @@ def assignDeviceToLocationWithRole( boatId, datBytes ):
 		devLocationIdx
 	) = struct.unpack( "<IBB", datBytes )
 	
-	
+	networkCommon.dbgPrint( "addDeviceAtLoc boatId: %i devId: %i devRoleIdx %i devLocationIdx %i " % (boatId, devId, devRoleIdx, devLocationIdx) )
 	
 	
 	#add to devices by location
@@ -114,29 +143,54 @@ def assignDeviceToLocationWithRole( boatId, datBytes ):
 	existingDevice = None
 	if devRoleIdx in devLocDevices:
 		existingDevice = devLocDevices[devRoleIdx]
+		networkCommon.dbgPrint( "existing device in devLocDevs %i" % devRoleIdx )
 	
+	networkCommon.dbgPrint( "assigining to devicesByLocation devLocationIdx %i  devLocDevs devRoleIdx: %i devId: %i" % (devLocationIdx, devRoleIdx, devId) )
 	devLocDevices[devRoleIdx] = devId
 	
-	
+	if existingDevice == None:
+		selBoat.numDevices += 1
 	
 	
 	#add to deivces by id
-	selBoat.devicesById[devId] = [devRole, devLocation]
-	
+	selBoat.devicesById[devId] = [devRoleIdx, devLocationIdx]
+	networkCommon.dbgPrint( "assigned to devicesById devId: %i  [ devRoleIdx: %i , devLocationIdx: %i ]" % (devId, devRoleIdx, devLocationIdx) )
 	
 	
 	
 	#add to device hierarchy
-	devParent = None
-	if ( devLocationIdx in LOCATION_PARENTS ):
-		devParent = DEV_LOCATION_TO_IDX[ LOCATION_PARENTS[devLocationIdx] ]
 	
-	selBoat.deviceHierarchy[devParent][devLocationIdx] = { "DEV_ROLE":devRoleIdx }
+	#find the path of the device location
+	path = []
+	findPathOfLocation( path, 0, devLocationIdx )
 	
+	curHierarch = selBoat.deviceHierarchy
 	
+	#start at the root(exclude boat) and work down to the leaf (one before devLocationIdx)
+	for i in range(len(path) - 2, -1, -1):
+		curLocIdx = path[i]
+		#curLeafIdx = path[i-1]
+		
+		networkCommon.dbgPrint( "curLocIdx %i" % (curLocIdx) )
+		
+		#add the curLoc and curLeaf (if doesn't already exist)
+		if curLocIdx in curHierarch:
+			hierarchPar = curHierarch[curLocIdx]
+		else:
+			hierarchPar = {}
+			curHierarch[curLocIdx] = hierarchPar
+		
+		curHierarch = hierarchPar
 	
-	if existingDevice == None:
-		selBoat.numDevices += 1
+	#assign the dev id at the obtained location in the device heriarchy
+	
+	if not (devRoleIdx in curHierarch):
+		curHierarch = { devRoleIdx:devId }
+	else:
+		curHierarch[devRoleIdx] = devId #get the devLocationIdx dictionary because there may be multiple devRoles there
+	
+	networkCommon.dbgPrint( "assigned to deviceHierarchy: curHierarch %s devRoleIdx %i devId %i" % (str(curHierarch), devRoleIdx, devId) )
+	
 
 
 def fillNewBoatVals( newBoat, valBytes ):

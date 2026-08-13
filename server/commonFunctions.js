@@ -350,7 +350,7 @@ function pageBackKeyObtained(key){
 	//window.history.replaceState(stateObject, document.title, window.location.pathname + "?key=" + key);
 }
 
-window.onload = function(event){
+function commonFuncOnPageLoad(event){
 	nAtErrShown = false;
 	nAtElm = document.getElementById("networkAuthText");
 	nALElm = document.getElementById("networkAuthLink");
@@ -363,6 +363,7 @@ window.onload = function(event){
 		sendCmd('getKey');
 	}
 }
+document.addEventListener("DOMContentLoaded", commonFuncOnPageLoad );
 
 
 
