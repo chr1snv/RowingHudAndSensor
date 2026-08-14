@@ -41,12 +41,15 @@
 			</table>
 		</td></tr>
 		<tr><td id="selBoatTbl_Expand_Coach" onclick="showHideSelBoatTbl(this, 'selBoatTbl_Coach_Devs', 'Coach')">V Coach</td></tr>
-		<tr><td id="selBoatTbl_Expand_Coxan" onclick="showHideSelBoatTbl(this, 'selBoatTbl_Coxan_Devs', 'Coxan')">V Coxan</td></tr>
+		<tr><td>
+			<table id ="selBoatTbl_Coach_Devs">
+			</table>
+		</td></tr>
 		<tr><td id="selBoatTbl_Expand_Hull" onclick="showHideSelBoatTbl(this, 'selBoatTbl_Hull_Devs', 'Hull')">V Hull</td></tr>
-			<table id ="selBoatTbl_Hull_Devs">
+			<table id ="selBoatTbl_Hull">
 				<tr>
 					<td>
-						<table>
+						<table id="selBoatTbl_Hull_Devs">
 							<table id="selBoatTbl_Hull_Dev0" style="border: 1px solid #ccc; border-radius: 12px; border-spacing: 0; overflow: hidden; width: 500px;" onclick="selBoatTblClicked(this)">
 								<tr>
 									<td style="border-bottom: 1px solid white; padding: 8px;">Dev Location</td>
@@ -66,6 +69,7 @@
 						</table>
 					</td>
 				</tr>
+				<tr><td id="selBoatTbl_Expand_Coxan" onclick="showHideSelBoatTbl(this, 'selBoatTbl_Coxan_Devs', 'Coxan')">V Coxan</td></tr>
 			</table>
 		</td></tr>
 	</table>

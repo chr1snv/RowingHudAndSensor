@@ -37,16 +37,20 @@ def sendSelectedBoatInfo(client, boatId):
 			selBoat.NumSeats,
 			selBoat.numDevices )
 		#gather info about each device in the boat
+		networkCommon.dbgPrint( "selBoat.deviceHierarchy %s" % str(selBoat.deviceHierarchy)  )
 		for devLoc in selBoat.deviceHierarchy:
 			devLocDevices = selBoat.deviceHierarchy[devLoc]
 			networkCommon.dbgPrint( "packing info for location %i len(devLocDevices): %i" % ( devLoc, len(devLocDevices) ) )
 			for devRole in devLocDevices:
-				devId = devLocDevices[devRole]
-				devMsgBytes = struct.pack("<IBB",
+				[devId, subDevs] = devLocDevices[devRole]
+				devNumSubDevs = len(subDevs)
+				devMsgBytes = struct.pack("<IBBB",
 					devId,
 					devLoc,
-					devRole )
+					devRole,
+					devNumSubDevs )
 				selectedBoatMsgBytesToClient += devMsgBytes
+				networkCommon.dbgPrint( "packedDevice role: %i bytes: %i totalBytes: %i" % ( devRole, len(devMsgBytes), len(selectedBoatMsgBytesToClient)) )
 		client.send(Client.svrDevId, [('BoatSelBoat', len(selectedBoatMsgBytesToClient), selectedBoatMsgBytesToClient)])
 
 def handleWebSockClientDeviceRequests( client, datType, datStr ):

@@ -90,9 +90,8 @@ LOCATION_PARENTS = {
 }
 #locations may have multiple children
 LOCATION_CHILDREN = {
-	"Boat"	: [ "Coach", "Hull", "Coxan" ],
-	"Hull"	: [ "Coxan", "1" ],
-	"Hull"	: "1"
+	"Boat"	: [ "Coach", "Hull" ],
+	"Hull"	: [ "Coxan", "1" ]
 }
 
 
@@ -163,6 +162,7 @@ def assignDeviceToLocationWithRole( boatId, datBytes ):
 	#find the path of the device location
 	path = []
 	findPathOfLocation( path, 0, devLocationIdx )
+	networkCommon.dbgPrint("devHierarchPath %s" % str(path) ) 
 	
 	curHierarch = selBoat.deviceHierarchy
 	
@@ -183,14 +183,11 @@ def assignDeviceToLocationWithRole( boatId, datBytes ):
 		curHierarch = hierarchPar
 	
 	#assign the dev id at the obtained location in the device heriarchy
-	
-	if not (devRoleIdx in curHierarch):
-		curHierarch = { devRoleIdx:devId }
-	else:
-		curHierarch[devRoleIdx] = devId #get the devLocationIdx dictionary because there may be multiple devRoles there
+	devSubDevs = []
+	curHierarch[devRoleIdx] = [devId, devSubDevs]
 	
 	networkCommon.dbgPrint( "assigned to deviceHierarchy: curHierarch %s devRoleIdx %i devId %i" % (str(curHierarch), devRoleIdx, devId) )
-	
+	networkCommon.dbgPrint( "selBoat.deviceHierarchy %s" % str(selBoat.deviceHierarchy) ) 
 
 
 def fillNewBoatVals( newBoat, valBytes ):
