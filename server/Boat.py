@@ -75,10 +75,10 @@ DEV_LOCATION_TO_IDX = {
 IDX_TO_DEV_LOCATION = list(DEV_LOCATION_TO_IDX.keys())
 
 ALLOWED_ROLES_AT_LOCATION = {
-	"Coach":	[1 																		 ],
-	 "Hull":	[0, 8, 9, 10, 11, 12, 13, 14, 15, 16									 ],
-	"Coxan":	[1, 15																	 ],
-		"1":	[ 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24] #hud, oar, seat, camera, physiology and chem sensors
+	"Coach":	[1 																		 ], #HUD
+	 "Hull":	[0, 8, 9, 10, 11, 12, 13, 14, 15, 16									 ], #MasterIMU, Mic, Sonar, Radar, Lidar, Cameras
+	"Coxan":	[1, 8, 15																 ], #HUD, Mic, Camera
+		"1":	[ 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24] #HUD, oar, seat, camera, physiology and chem sensors
 }
 
 #every location can have one parent
@@ -114,10 +114,15 @@ def removeDeviceAtLocationAndRoleFromBoat( boatId, datBytes ):
 
 
 def findPathOfLocation( path, rootIdx, locIdx ):
+	print( "findPath rootIdx %i locIdx %i" % (rootIdx, locIdx) )
 	path.append( locIdx )
 	curIdx = locIdx
 	while curIdx != rootIdx:
-		curIdx = DEV_LOCATION_TO_IDX [ LOCATION_PARENTS [ IDX_TO_DEV_LOCATION[ curIdx ] ] ]
+		devLocStr 	= IDX_TO_DEV_LOCATION[ curIdx ]
+		parent 		= LOCATION_PARENTS [ devLocStr ]
+		parentIdx 	= DEV_LOCATION_TO_IDX [ parent ]
+		print( "devLocStr %s parent %s parentIdx %i" % (devLocStr, parent, parentIdx) )
+		curIdx = parentIdx
 		path.append( curIdx )
 	#list(reversed(path)) #to get parent -> leaf order
 
@@ -174,12 +179,8 @@ def assignDeviceToLocationWithRole( boatId, datBytes ):
 		networkCommon.dbgPrint( "curLocIdx %i" % (curLocIdx) )
 		
 		#add the curLoc and curLeaf (if doesn't already exist)
-		if curLocIdx in curHierarch:
-			hierarchPar = curHierarch[curLocIdx]
-		else:
-			hierarchPar = {}
-			curHierarch[curLocIdx] = hierarchPar
-		
+		hierarchPar = curHierarch.setdefault(curLocIdx, {})
+
 		curHierarch = hierarchPar
 	
 	#assign the dev id at the obtained location in the device heriarchy

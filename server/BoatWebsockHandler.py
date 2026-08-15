@@ -40,7 +40,7 @@ def sendSelectedBoatInfo(client, boatId):
 		networkCommon.dbgPrint( "selBoat.deviceHierarchy %s" % str(selBoat.deviceHierarchy)  )
 		for devLoc in selBoat.deviceHierarchy:
 			devLocDevices = selBoat.deviceHierarchy[devLoc]
-			networkCommon.dbgPrint( "packing info for location %i len(devLocDevices): %i" % ( devLoc, len(devLocDevices) ) )
+			networkCommon.dbgPrint( "packing info for location %i len(devLocDevices): %i devLocDevices %s" % ( devLoc, len(devLocDevices), devLocDevices ) )
 			for devRole in devLocDevices:
 				[devId, subDevs] = devLocDevices[devRole]
 				devNumSubDevs = len(subDevs)

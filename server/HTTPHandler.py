@@ -27,8 +27,8 @@ class HTTPAsyncHandler(http.server.SimpleHTTPRequestHandler):
 	def replyWithStartFile(self, filePath, closeConn=False):
 		if filePath.startswith('theFrayen'):
 			filePath = '../'+ filePath
-		if filePath.startswith('scenes'):
-			filePath = '../theFrayen/'+ filePath 
+		#if filePath.startswith('scenes'):
+		#	filePath = '../theFrayen/'+ filePath 
 		filePathStr = os.getcwd() + os.path.sep + filePath
 		self.send_response(200)
 		networkCommon.dbgPrint( filePathStr )

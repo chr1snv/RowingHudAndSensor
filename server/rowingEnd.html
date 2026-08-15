@@ -52,21 +52,22 @@
 		});
 		const idxToBoatDevRoles = Object.keys(boatDevRoles);
 
-		const boatDevLocations = Object.freeze({
-			Boat	:0,
-			Coach	:1,
-			Hull	:2,
-			Coxan	:3,
-			1		:4,
-			2		:5,
-			3		:6,
-			4		:7,
-			5		:8,
-			6		:9,
-			7		:10,
-			8		:11
-		});
-		const idxToDevLocations = Object.keys(boatDevLocations);
+		//have to use map because (JavaScript sorts integer keys first when ordering object keys)
+		const boatDevLocations = new Map( [
+			["Boat"	,0],
+			["Coach",1],
+			["Hull"	,2],
+			["Coxan",3],
+			[1		,4],
+			[2		,5],
+			[3		,6],
+			[4		,7],
+			[5		,8],
+			[6		,9],
+			[7		,10],
+			[8		,11]
+		]);
+		const idxToDevLocations = Array.from(boatDevLocations.keys());
 
 		const AllowedRolesAtPosition = Object.freeze( {
 			Coach:	[1],
@@ -198,6 +199,24 @@
 			return newTd;
 		}
 		
+		function getOrCreateDevTableElms(elms, tableParElm, loc, role){
+			elms[0] = document.getElementById( "selBoatTbl"+loc+"_"+role+"_Loc" );
+			elms[1] = document.getElementById( "selBoatTbl"+loc+"_"+role+"_Role");
+			elms[2] = document.getElementById( "selBoatTbl"+loc+"_"+role+"_Name");
+			elms[3] = document.getElementById( "selBoatTbl"+loc+"_"+role+"_Id"  );
+			elms[4] = document.getElementById( "selBoatTbl"+loc+"_"+role+"_Rm"  );
+
+			if( elms[0] == null ){
+				//create new row and table divs for device number i
+				let devCellStyle = "border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;";
+				elms[0] = createSelBoatDevTd( tableParElm, "selBoatTbl" +loc+"_"+role+"_Loc" , devCellStyle );
+				elms[1] = createSelBoatDevTd( tableParElm, "selBoatTbl" +loc+"_"+role+"_Role", devCellStyle );
+				elms[2] = createSelBoatDevTd( tableParElm, "selBoatTbl" +loc+"_"+role+"_Name", devCellStyle );
+				elms[3] = createSelBoatDevTd( tableParElm, "selBoatTbl" +loc+"_"+role+"_Id"  , devCellStyle );
+				elms[4] = createSelBoatDevTd( tableParElm, "selBoatTbl" +loc+"_"+role+"_Rm"  , devCellStyle );
+			}
+		}
+		let devTblElms = new Array(5);
 		function displaySelBoatDev(devPath, tableParElm, v, offset){
 			// e.g. selBoatTbl_Hull_MasterIMU
 				
@@ -213,28 +232,16 @@
 			let numSubDevs = v.getUint8(offset);
 			offset += 1;
 			
-			let devLocElm    = document.getElementById("selBoatTbl_"   +devLoc+"_"+devRole+"_Loc");
-			let devRoleElm = document.getElementById(  "selBoatTbl"    +devLoc+"_"+devRole+"_Role");
-			let devNameElm = document.getElementById(  "selBoatDevName"+devLoc+"_"+devRole+"_Name");
-			let devIdElm   = document.getElementById(  "selBoatDevId"  +devLoc+"_"+devRole+"_Id");
-
-			if( devLocElm == null ){
-				//create new row and table divs for device number i
-				let devCellStyle = "border-right: 1px solid #ccc; border: 1px solid white; padding: 8px;";
-				let newTr = document.createElement( "tr" );
-				devLocElm = createSelBoatDevTd(  newTr, "selBoatTbl_"   +devLoc+"_"+devRole+"_Loc" , devCellStyle );
-				devRoleElm = createSelBoatDevTd( newTr, "selBoatTbl"    +devLoc+"_"+devRole+"_Role", devCellStyle );
-				devNameElm = createSelBoatDevTd( newTr, "selBoatDevName"+devLoc+"_"+devRole+"_Name", devCellStyle );
-				devIdElm = createSelBoatDevTd(   newTr, "selBoatDevId"  +devLoc+"_"+devRole+"_Id"  , devCellStyle );
-				tableParElm.appendChild( newTr );
-			}
+			let devLocStr  = idxToDevLocations[devLoc];
+			let devRoleStr = idxToBoatDevRoles[devRole];
 			
+			getOrCreateDevTableElms( devTblElms, tableParElm, devLocStr, devRoleStr );
 			
 			
 			//assign values to display
-			devLocElm.innerText  = devLoc;
-			devIdElm.innerText   = devId;
-			devRoleElm.innerText = devRole;
+			devTblElms[0].innerText = devLocStr;
+			devTblElms[1].innerText = devRoleStr;
+			devTblElms[3].innerText = devId;
 			
 			console.log( numSubDevs );
 			for( let j = 0; j < numSubDevs; ++j ){
@@ -278,9 +285,10 @@
 			console.log( "numDevices " + numDevices );
 			for( let i = 0; i < numDevices; ++i ){
 				let newTr = document.createElement( "tr" );
-				tableParElm.appendChild( newTr );
-			
+				
 				displaySelBoatDev( devPath,  newTr, v, offset );
+				
+				tableParElm.children[0].appendChild( newTr );
 			}
 		}
 		
@@ -341,7 +349,7 @@
 			offset += 4;
 			boatMsgView.setUint8( offset, boatDevRoles		[ devAddAsRoleElm.value ]  );
 			offset += 1;
-			boatMsgView.setUint8( offset, boatDevLocations	[ devAddAtSeatElm.value ] );
+			boatMsgView.setUint8( offset, boatDevLocations.get( devAddAtSeatElm.value ) );
 			offset += 1;
 			boatMsgLength = offset;
 
@@ -352,9 +360,9 @@
 		function selBoatTblRemove(rmEntryElm){
 			let tblElm = rmEntryElm.parentElement.parentElement;
 			console.log( "selBoatTblRemove" + tblElm.children.length );
-			let devPosition 	= boatDevLocations[	tblElm.children[1].children[0].innerText];
-			let devRole			= boatDevRoles[		tblElm.children[1].children[1].innerText];
-			let devId			= 					tblElm.children[1].children[3].innerText;
+			let devPosition 	= boatDevLocations.get(	tblElm.children[1].children[0].innerText );
+			let devRole			= boatDevRoles		[	tblElm.children[1].children[1].innerText ];
+			let devId			= 						tblElm.children[1].children[3].innerText;
 			
 			let offset = 0;
 			boatMsgView.setUint32( offset, devId );
@@ -415,8 +423,8 @@
 				<td>Scene</td>
 				<td>
 					<select id="sceneSelection" style="height:40px;" name="scene">
+						<option>boatAndOar1</option>
 						<option>girl_35_boatAnimsIntegrated</option>
-						<option>rowingVisualizer</option>
 					</select>
 				</td>
 				<td><button type="button" id="runSceneButton" style="height:40px; width:80px" onclick="stopAutostart()">Stop Autostart</button></td>
