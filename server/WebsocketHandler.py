@@ -113,17 +113,10 @@ def msgHandler(websocket, msg, client_ip_address):
 				elif datType.startswith(b'loginPass'):
 					loginPass = datStr
 					networkCommon.dbgPrint( 'loginPass: pendingLoginUname %s loginPass %s' % (pendingLoginUname, loginPass) )
-					networkCommon.acquireLocksAndRunFunction( [Client.clients_lock, Accounts.accounts_lock], Accounts.HandleLoginAuthRequest, websocket, client, pendingLoginUname, loginPass, rcvTime )
+					Accounts.HandleLoginAuthRequest( websocket, client, pendingLoginUname, loginPass, rcvTime )
 					networkCommon.dbgPrint( "aftr acquireLocksAndRunFunction" )
-				elif pktAuth != '': #a valid pktAuth has been recieved for the data packet
-					networkCommon.acquireLocksAndRunFunction( [Client.clients_lock, Accounts.accounts_lock], 
-							ClientWebsockHandler.handleClientWebsockRequests,
-							websocket,
-							pktAuth,
-							datType,
-							datLen,
-							datStr
-							)
+				elif pktAuth != '': #a valid pktAuth has been recieved for the data packet 
+					ClientWebsockHandler.handleClientWebsockRequests( websocket, pktAuth, datType, datLen, datStr )
 					
 			elif fromDorC == ord('f'):
 				networkCommon.dbgPrint("packet from file server id %i datType %s datLen %i" %(devOrCliId, datType, datLen) )

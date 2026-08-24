@@ -32,6 +32,8 @@ class Client:
 		self.devId = -1 #the selected device to control
 		self.fSvrId = -1 #the selected file server to read
 		
+		self.selectedBoatId = -1 #the selected boat
+		
 		self.sendPktIdx = 0
 		self.wSock = None
 		self.login = None

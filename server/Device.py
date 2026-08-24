@@ -39,10 +39,10 @@ class Device:
 		self.lastImageLength = 0
 		self.lastImageTime = networkCommon.curMillis()
 
-		self.postSettings = b''
+		self.lastSettingsPkt = b''
 		self.lastSettingsTime = networkCommon.curMillis()
 		
-		self.postStatus = b''
+		self.lastStatusPkt = b''
 		self.lastStatusTime = networkCommon.curMillis()
 
 		self.alarmArmed			= ""
@@ -95,7 +95,7 @@ class Device:
 #uint8_t lastTemperature; //temperature of the esp32
 
 	def fillStatus( self, statBytes ):
-		self.postStatus = statBytes
+		self.lastStatusPkt = statBytes
 		self.lastStatusTime = networkCommon.curMillis()
 		try:
 			sidx = 0
