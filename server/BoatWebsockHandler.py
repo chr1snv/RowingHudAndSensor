@@ -44,7 +44,7 @@ def sendBoatInfo(client, boatId):
 					devRole,
 					devNumSubDevs )
 				retBytes += devMsgBytes
-				networkCommon.dbgPrint( "packedDevice role: %i bytes: %i totalBytes: %i" % ( devRole, len(devMsgBytes), len(selectedBoatMsgBytesToClient)) )
+				#networkCommon.dbgPrint( "packedDevice role: %i bytes: %i totalBytes: %i" % ( devRole, len(devMsgBytes), len(selectedBoatMsgBytesToClient)) )
 			
 			for loc in curLocs:
 				subLoc = curLocs[loc]
@@ -68,7 +68,7 @@ def sendBoatStatus(client, boatId):
 		selBoat.numDevices
 	)
 
-	networkCommon.dbgPrint("selBoat.deviceHierarchy %s" % str(selBoat.deviceHierarchy))
+	#networkCommon.dbgPrint("selBoat.deviceHierarchy %s" % str(selBoat.deviceHierarchy))
 
 	# 2. Recursive layout engine to trace down location blocks safely
 	def collect_device_bytes(node, current_loc_idx=0):
@@ -80,10 +80,10 @@ def sendBoatStatus(client, boatId):
 		if node.get("type") == "location":
 			devLocDevices = node.get("devices", {})
 
-			networkCommon.dbgPrint(
-				"packing info for location %i len(devLocDevices): %i devLocDevices %s" % 
-				(current_loc_idx, len(devLocDevices), str(devLocDevices))
-			)
+			#networkCommon.dbgPrint(
+			#	"packing info for location %i len(devLocDevices): %i devLocDevices %s" % 
+			#	(current_loc_idx, len(devLocDevices), str(devLocDevices))
+			#)
 
 			for devRole, dev_node in devLocDevices.items():
 				devId = dev_node["devId"]
@@ -95,6 +95,18 @@ def sendBoatStatus(client, boatId):
 				# FIX: Look up the device driver instance inside the global `devices` dictionary, 
 				# NOT out of the empty sub-devices list tree definition tracking array.
 				device = Device.GetOrAllocateDevice( devId )
+				
+				#if the device isn't updating frequently, put it into actively commanded mode
+				devTimeDiff = networkCommon.curMillis() - device.lastStatusTime 
+				devTimeDiffThreshold = Device.ACTIVE_PKT_INTERVAL_MILLIS
+				#networkCommon.dbgPrint( "devTimeDiff %s threshold %s" % (devTimeDiff, devTimeDiffThreshold) )
+				if devTimeDiff  > Device.ACTIVE_PKT_INTERVAL_MILLIS:
+					cmdDatArr = []
+					cmdPart = "activeCmd"[:11]
+					dat = "500"
+					networkCommon.dbgPrint( "dev pkts too slow cmd %s dat %s" % (cmdPart, dat) )
+					cmdDatArr.append( (cmdPart, len(dat), dat) )
+					device.send( Client.svrDevId, cmdDatArr )
 				
 				# Format: I=DevID, B=LocIdx, B=RoleIdx, B=SubDevCount, H=PacketLength
 				devMsgBytes = struct.pack(
@@ -108,10 +120,10 @@ def sendBoatStatus(client, boatId):
 				bytes_accumulator += devMsgBytes
 				bytes_accumulator += device.lastStatusPkt
 				
-				networkCommon.dbgPrint(
-					"packedDevice role: %i bytes: %i totalBytes: %i" % 
-					(devRole, len(devMsgBytes), len(bytes_accumulator))
-				)
+				#networkCommon.dbgPrint(
+				#	"packedDevice role: %i bytes: %i totalBytes: %i" % 
+				#	(devRole, len(devMsgBytes), len(bytes_accumulator))
+				#)
 
 			# Recurse down into all nested sub-locations
 			sub_locations = node.get("locations", {})
@@ -155,7 +167,7 @@ def handleWebSockClientDeviceRequests( client, datType, datStr ):
 		sendBoatInfo(client, boatId)
 
 	elif datType.startswith(b'BoatStatus'):
-		networkCommon.dbgPrint( "handle BoatStatus" )
+		#networkCommon.dbgPrint( "handle BoatStatus" )
 		try:
 			sendBoatStatus( client, client.selectedBoatId )
 		except Exception as e:

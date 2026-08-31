@@ -185,7 +185,7 @@ def sendPkt(wSocket, pktNum, fromDevId, datInfoArr, fromDevType='s'):
 		else:
 			wSocket['handler'].request.sendall(complete_ws_frame)
 		
-		dbgPrint("sendPkt completed synchronously and sent frame data")
+		#dbgPrint("sendPkt completed synchronously and sent frame data")
 		pktNum += 1
 	except Exception as e:
 		strSendError = str(e)

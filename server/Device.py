@@ -11,6 +11,7 @@ MAG_SENSOR_SIZE = 6          # h h h (3 * int16) -> 6 bytes
 ACCEL_SENSOR_SIZE = 6        # h h h (3 * int16) -> 6 bytes
 GYRO_SENSOR_SIZE = 6         # h h h (3 * int16) -> 6 bytes
 
+ACTIVE_PKT_INTERVAL_MILLIS = 500
 
 #last status
 class Device:
@@ -80,9 +81,9 @@ class Device:
 			#print("send to device " )
 			#print(datInfoArr)
 			prevPktIdx = self.sendPktIdx
-			print( self.sendPktIdx )
+			#print( self.sendPktIdx )
 			self.sendPktIdx = networkCommon.sendPkt(self.wSock, self.sendPktIdx, fromDevId, datInfoArr )
-			print( self.sendPktIdx ) 
+			#print( self.sendPktIdx ) 
 			if self.sendPktIdx != prevPktIdx:
 				return True
 		return False
@@ -100,7 +101,7 @@ class Device:
 		try:
 			sidx = 0
 			cmdValArr = []
-			print(statBytes)
+			#print(statBytes)
 			(
 				self.deviceID, 
 				self.featureMask, 
@@ -109,10 +110,10 @@ class Device:
 				self.lastTemperature
 			) = struct.unpack( "<HHHiB", statBytes[sidx : sidx + 11] )
 			sidx += 11
-			print("devId %i ftMask %i devMd %i staRssi %i lastTemp %i" % 
-				(self.deviceID, self.featureMask, self.deviceMode, self.staRssi, self.lastTemperature) )
+			#print("devId %i ftMask %i devMd %i staRssi %i lastTemp %i" % 
+				#(self.deviceID, self.featureMask, self.deviceMode, self.staRssi, self.lastTemperature) )
 			devType = firstMatchingDeviceTypeToMask(self.featureMask)
-			print( "DevType: %s" % (deviceTypes[devType][0]) ) 
+			#print( "DevType: %s" % (deviceTypes[devType][0]) ) 
 			
 			#if maskHasBit( self.featureMask, 0 ):
 			#	sidx = fillFileStatus( self, statBytes, sidx )
@@ -158,9 +159,9 @@ def fillMagStatus(self, statBytes, idx):
 		self.mx, 
 		self.my,
 		self.mz
-	) = struct.unpack( "<HHH", statBytes[ idx : idx + 6] )
+	) = struct.unpack( "<hhh", statBytes[ idx : idx + 6] )
 	idx += 6
-	print( "mx %i my %i mz %i" % (self.mx, self.my, self.mz) )
+	#print( "mx %i my %i mz %i" % (self.mx, self.my, self.mz) )
 	return idx
 
 def fillAccelStatus(self, statBytes, idx):
@@ -168,9 +169,9 @@ def fillAccelStatus(self, statBytes, idx):
 		self.ax, 
 		self.ay,
 		self.az
-	) = struct.unpack( "<HHH", statBytes[ idx : idx + 6] )
+	) = struct.unpack( "<hhh", statBytes[ idx : idx + 6] )
 	idx += 6
-	print( "ax %i ay %i az %i" % (self.ax, self.ay, self.az) )
+	#print( "ax %i ay %i az %i" % (self.ax, self.ay, self.az) )
 	return idx
 
 def fillGyroStatus(self, statBytes, idx):
@@ -178,9 +179,9 @@ def fillGyroStatus(self, statBytes, idx):
 		self.gx, 
 		self.gy,
 		self.gz
-	) = struct.unpack( "<HHH", statBytes[ idx : idx + 6] )
+	) = struct.unpack( "<hhh", statBytes[ idx : idx + 6] )
 	idx += 6
-	print( "gx %i gy %i gz %i" % (self.gx, self.gy, self.gz) )
+	#print( "gx %i gy %i gz %i" % (self.gx, self.gy, self.gz) )
 	return idx
 #def fillMicStatus():
 
@@ -231,7 +232,7 @@ def GetCommandListBytes(cmds):
 	#get queued commands to send to device
 	#output = io.BytesIO()
 	numCmdsToSend = min(9, len(cmds))
-	print( "numCmds in getList %i" % numCmdsToSend )
+	#print( "numCmds in getList %i" % numCmdsToSend )
 	#output.write( str(numCmdsToSend).encode('utf-8') ) #number of commands
 	#output.write( b's' ) #commands are from server
 	retArr = []

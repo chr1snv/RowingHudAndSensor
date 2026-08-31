@@ -16,7 +16,10 @@ extern uint8_t devMode;
 
 httpd_handle_t camera_httpd = NULL;
 
+unsigned long inactiveCloudSendStatusIntervalMillis = 1000000; // 1 sec
+unsigned long   activeCloudSendStatusIntervalMillis = 50000;   // 5/100 ths of a second
 unsigned long cloudSendStatusIntervalMillis = 1000000;
+uint16_t      cloudSendActiveRemPkts = 0;
 
 unsigned long cloudLatency = 0;
 
@@ -105,42 +108,42 @@ struct __attribute__((packed)) SpeakerStatus {
 
 uint16_t getLengthOfSectionsForMask ( uint16_t featureMask, uint8_t numServos ){
 	uint16_t lengthOfSections = 0;
-	if( featureMask | 0x01 )
+	if( featureMask & 0x01 )
 		lengthOfSections += sizeof(FileServerStatus);
 	featureMask >>= 1;
 
-	if( featureMask | 0x01 )
+	if( featureMask & 0x01 )
 		lengthOfSections += sizeof(DistSensorStatus);
 	featureMask >>= 1;
 
-	if( featureMask | 0x01 )
+	if( featureMask & 0x01 )
 		lengthOfSections += sizeof(MagSensorStatus);
 	featureMask >>= 1;
-	if( featureMask | 0x01 )
+	if( featureMask & 0x01 )
 		lengthOfSections += sizeof(AccelSensorStatus);
 	featureMask >>= 1;
-	if( featureMask | 0x01 )
+	if( featureMask & 0x01 )
 		lengthOfSections += sizeof(GyroSensorStatus);
 	featureMask >>= 1;
 
-	if( featureMask | 0x01 )
+	if( featureMask & 0x01 )
 		lengthOfSections += sizeof(MicSensorStatus);
 	featureMask >>= 1;
 	//if( hasCameraSensor )
-	//	featureMask |= 0x01;
+	//	featureMask &= 0x01;
 	featureMask >>= 1;
 
 
 	//if( hasSrvosOut )
-	//	featureMask |= 0x01;
+	//	featureMask &= 0x01;
 	featureMask >>= 1;
 	//if( hasDisplayOut )
-	//	featureMask |= 0x01;
+	//	featureMask &= 0x01;
 	featureMask >>= 1;
-	if( featureMask | 0x01 )
+	if( featureMask & 0x01 )
 		lengthOfSections += sizeof(LightOutputStatus);
 	featureMask >>= 1;
-	if( featureMask | 0x01 )
+	if( featureMask & 0x01 )
 		lengthOfSections += sizeof(SpeakerStatus);
 	return lengthOfSections;
 }
@@ -374,6 +377,16 @@ uint8_t doCommand( const char * cmd, uint16_t valLen, const char * value ){
 		uint16_t pktIdx = fillPktHdr(lastCsiInfoStr);
 		pktIdx += fillStatusBytes(&lastCsiInfoStr[pktIdx]);
 		Serial.print("sendingStatus ");Serial.println(pktIdx);
+		esp_websocket_client_send_bin(webSockClient, (const char *)&(lastCsiInfoStr[0]), pktIdx, portMAX_DELAY);
+		sucessfulyHandledCmd = 22;
+	}
+	
+	else if( !strncmp(cmd, "activeCmd", 9) ){
+		uint16_t pktIdx = fillPktHdr(lastCsiInfoStr);
+		uint16_t numActivePkts = atoir_n(&value[valLen-1], valLen );
+		cloudSendActiveRemPkts = numActivePkts;
+		cloudSendStatusIntervalMillis = activeCloudSendStatusIntervalMillis;   // 5/100 ths of a second
+		Serial.print("activeCmd ");Serial.println(numActivePkts);
 		esp_websocket_client_send_bin(webSockClient, (const char *)&(lastCsiInfoStr[0]), pktIdx, portMAX_DELAY);
 		sucessfulyHandledCmd = 22;
 	}

@@ -33,7 +33,7 @@ def msgHandler(websocket, msg, client_ip_address):
 			msg = msg.encode('utf-8')
 		sync, pktIdx, devOrCliId, numCmd, fromDorC = struct.unpack("<BBHBB", msg[0:networkCommon.PACKET_HEADER_SIZE])
 
-		networkCommon.dbgPrint( "pktIdx %i devOrCliId %s numCmd %i fromType %c" % (pktIdx, devOrCliId, numCmd, fromDorC) )
+		#networkCommon.dbgPrint( "pktIdx %i devOrCliId %s numCmd %i fromType %c" % (pktIdx, devOrCliId, numCmd, fromDorC) )
 		mIdx = networkCommon.PACKET_HEADER_SIZE
 		cmdIdx = 0
 		
@@ -42,12 +42,12 @@ def msgHandler(websocket, msg, client_ip_address):
 		pendingLoginUname = ''
 		pktAuth = ''
 		while cmdIdx < numCmd:
-			networkCommon.dbgPrint(msg[mIdx : mIdx+11+20])
+			#networkCommon.dbgPrint(msg[mIdx : mIdx+11+20])
 			datType = msg[mIdx:mIdx+11]
-			networkCommon.dbgPrint("datType %s" % datType)
+			#networkCommon.dbgPrint("datType %s" % datType)
 			mIdx += 11
 			datLen = int.from_bytes( msg[mIdx : mIdx + 2], byteorder="big" )
-			networkCommon.dbgPrint( "datLenBytes %s datLen %i" % ( msg[mIdx: mIdx+2],  datLen ) )
+			#networkCommon.dbgPrint( "datLenBytes %s datLen %i" % ( msg[mIdx: mIdx+2],  datLen ) )
 			mIdx += 2
 			datStr = msg[mIdx:mIdx+datLen]
 			if fromDorC == ord('d'): #data from device
@@ -62,7 +62,7 @@ def msgHandler(websocket, msg, client_ip_address):
 				cliIdNum = -2
 				if client:
 					cliIdNum = client.cliId
-				networkCommon.dbgPrint( "from %s devId: %i datType: %s datLen: %i controllingCliId %i client %i" % (chr(fromDorC), devOrCliId, datType, datLen, device.controlingCliId, cliIdNum) )
+				#networkCommon.dbgPrint( "from %s devId: %i datType: %s datLen: %i controllingCliId %i client %i" % (chr(fromDorC), devOrCliId, datType, datLen, device.controlingCliId, cliIdNum) )
 				device.wSock = websocket #for sending data to device
 				if datType.startswith(b"Stat"):
 					device.fillStatus( datStr ) #read the status data in from device
@@ -76,7 +76,7 @@ def msgHandler(websocket, msg, client_ip_address):
 					if client:
 						client.send( device.devId, [('Stat', len(device.postStatus), device.postStatus), ('Time', len(lastStatTimeStr), lastStatTimeStr)] )
 					else:
-						networkCommon.dbgPrint("no cli to forward stat to")
+						None#networkCommon.dbgPrint("no cli to forward stat to")
 				if datType.startswith(b"Set"):
 					device.fillSettings( datStr, datLen )
 					lastSetTimeStr = str(device.lastSettingsTime).encode('utf-8')
@@ -166,4 +166,4 @@ def msgHandler(websocket, msg, client_ip_address):
 		# Cleanup: remove stale device/client references if needed
 		# (optional, depending on how your device/client lifecycle works)
 		pass
-	networkCommon.dbgPrint( "WebsocketHandler end")
+	#networkCommon.dbgPrint( "WebsocketHandler end")

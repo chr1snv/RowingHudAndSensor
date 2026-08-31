@@ -76,7 +76,7 @@ class Client:
 			if not sendWithoutAuth:
 				remPkts = str(self.login[LOGIN_REMAINING_RESPONSES_IDX]).encode('utf-8')
 				datInfoArr.append( ('remPkts', len(remPkts), remPkts) )
-			print("sending to %s %i" % (self.wSock.client_address, self.sendPktIdx) )
+			#print("sending to %s %i" % (self.wSock.client_address, self.sendPktIdx) )
 			self.sendPktIdx = networkCommon.sendPkt(self.wSock, self.sendPktIdx, fromDevId, datInfoArr )
 			if self.login != None:
 				with Accounts.accounts_lock:

@@ -189,38 +189,185 @@
 		}
 		
 		
-		function handleBoatStatus( msgBytes, bytesLen ){
-			//boatDeviceStatuses[0]
-			//console.log( dat );
+		// Global configuration mapping feature sizes to exactly match the hardware struct sizes in bytes
+		const SENSOR_SIZES = {
+			fileServer: 0,   // Set to sizeof(FileServerStatus) if active
+			dist: 0,         // Set to sizeof(DistSensorStatus) if active
+			mag: 6,          // 3x int16_t (mx, my, mz) = 6 bytes
+			accel: 6,        // 3x int16_t (ax, ay, az) = 6 bytes
+			gyro: 6,         // 3x int16_t (gx, gy, gz) = 6 bytes
+			mic: 0,          // Set to sizeof(MicSensorStatus) if active
+			light: 0,        // Set to sizeof(LightOutputStatus) if active
+			speaker: 0       // Set to sizeof(SpeakerStatus) if active
+		};
+
+		// Scale factors matching sensor hardware settings
+		const ACCEL_SCALE =   16.0 / 32768.0;  // To G-force
+		const GYRO_SCALE  = 2000.0 / 32768.0;  // To Degrees per Second (dps)
+		const MAG_SCALE   = 1.0;               // Default QMC5883P LSB conversion -> returns microTeslas (µT)
+
+
+		/**
+		 * Maps the parsed payload bytes directly into readable IMU sensory structures.
+		 * This directly aligns with your device telemetry variables.
+		 */
+		function parseDevicePayload(devPkt, ftMask) {
+			//console.log( "parseDevicePayload featureMask: " + ftMask );
+			let view = new DataView(devPkt);
+			let offset = 11;
+			let data = { devType: "IMU_Pod", sensors: {} };
+
+			// bit 0: File Server Status
+			if ((ftMask & 0x01) && SENSOR_SIZES.fileServer > 0) { 
+				//console.log( "fileServer status" );
+				offset += SENSOR_SIZES.fileServer;
+			}
+			ftMask >>= 1;
+
+			// bit 1: Distance Sensor Status
+			if ((ftMask & 0x01) && SENSOR_SIZES.dist > 0) {
+				//console.log( "distSensor status" );
+				offset += SENSOR_SIZES.dist;
+			}
+			ftMask >>= 1;
+
+			// bit 2: Magnetometer Sensor Status (mx, my, mz)
+			if (ftMask & 0x01) {
+				data.sensors.mag = {
+					mx: view.getInt16(offset    , true) * MAG_SCALE,
+					my: view.getInt16(offset + 2, true) * MAG_SCALE,
+					mz: view.getInt16(offset + 4, true) * MAG_SCALE
+				};
+				offset += SENSOR_SIZES.mag;
+				//console.log( "data.sensors.mag" + data.sensors.mag.mx + ":" + data.sensors.mag.my + ":" + data.sensors.mag.mz );
+			}
+			ftMask >>= 1;
+
+			// bit 3: Accelerometer Sensor Status (ax, ay, az)
+			if (ftMask & 0x01) {
+				data.sensors.accel = {
+					ax: view.getInt16(offset    , true) * ACCEL_SCALE,
+					ay: view.getInt16(offset + 2, true) * ACCEL_SCALE,
+					az: view.getInt16(offset + 4, true) * ACCEL_SCALE
+				};
+				offset += SENSOR_SIZES.accel;
+				//console.log( "data.sensors.accel" + data.sensors.accel.ax + ":" + data.sensors.accel.ay + ":" + data.sensors.accel.az );
+			}
+			ftMask >>= 1;
+
+			// bit 4: Gyroscope Sensor Status (gx, gy, gz)
+			if (ftMask & 0x01) {
+				data.sensors.gyro = {
+					gx: view.getInt16(offset    , true) * GYRO_SCALE,
+					gy: view.getInt16(offset + 2, true) * GYRO_SCALE,
+					gz: view.getInt16(offset + 4, true) * GYRO_SCALE
+				};
+				offset += SENSOR_SIZES.gyro;
+				//console.log( "data.sensors.gyro" + data.sensors.gyro.gx + ":" + data.sensors.gyro.gy + ":" + data.sensors.gyro.gz );
+			}
+			ftMask >>= 1;
+
+			// Output remaining mask structural checks if metadata expands
+			return data;
+		}
+
+		/**
+		 * Handles pointer advancement and updates the outer tracker.
+		 * You should pass your standard running tracking variables inside this module block.
+		 */
+		function readDevType(view, offset) {
+			// If your protocol passes an explicit device-type configuration field, parse it here.
+			// For this implementation, we advance past any dynamic metadata markers if they exist.
+			return offset; 
+		}
+
+
+
+		function handleBoatStatus(msgBytes, bytesLen) {
+			// 1. Print raw bytes in Hex for low-level structure analysis
+			let hexString = Array.from(new Uint8Array(msgBytes))
+				.map(b => b.toString(16).padStart(2, '0'))
+				.join(' ');
+			//console.log("=== Raw msgBytes (Hex) ===");
+			//console.log(hexString);
+
 			let v = new DataView(msgBytes);
 			let offset = 0;
-			let boatId = v.getUint32( offset );
+
+			let boatId = v.getUint32(offset, true);
+			//console.log(`\n[Header] Boat ID: ${boatId} (Offset: ${offset})`);
 			offset += 4;
-			let numDevices = v.getUint8( offset ); //upper limit on num device statuses
+
+			let numDevices = v.getUint8(offset);
+			//console.log(`[Header] Number of Devices: ${numDevices} (Offset: ${offset})`);
 			offset += 1;
-			for( let i = 0; i < numDevices && offset < bytesLen ; ++i ){
+
+			//console.log("\n=== Starting Device Loop ===");
+			// Changed loop guard: using 'offset' boundaries prevents buffer overflows
+			for (let i = 0; offset < bytesLen; ++i) {
+				//console.log(`\n--- Processing Device Entry #${i} at Offset ${offset} ---`);
 				
-				let devId = v.getUint32( offset );
+				let devId = v.getUint32(offset, true);
+				//console.log(`  Device ID: ${devId} (Offset: ${offset})`);
 				offset += 4;
-				let devLoc = v.getUint8( offset );
+				
+				let devLoc = v.getUint8(offset);
+				//console.log(`  Device Location: ${devLoc} (Offset: ${offset})`);
 				offset += 1;
-				let devRole = v.getUint8( offset );
+				
+				let devRole = v.getUint8(offset);
+				//console.log(`  Device Role: ${devRole} (Offset: ${offset})`);
 				offset += 1;
-				let devNumSubDevs = v.getUint8( offset );
+				
+				let devNumSubDevs = v.getUint8(offset);
+				//console.log(`  Num Sub-Devices: ${devNumSubDevs} (Offset: ${offset})`);
 				offset += 1;
-				let lenDevPkt = v.getUint16( offset );
+				
+				let lenDevPkt = v.getUint16(offset, true);
+				//console.log(`  Device Packet Length: ${lenDevPkt} bytes (Offset: ${offset})`);
 				offset += 2;
-				offset = readDevType(  );
-				let devPkt = msgBytes.slice(offset, lenDevPkt );
-				let subDevOffset = offset;
-				for( let j = 0; j < devNumSubDevs; ++j ){
-					v
+				
+				// CRITICAL FIX: Capture how 'readDevType' affects your pointer alignment
+				// If readDevType handles specific types, pass the current view/offset to it
+				// Example: offset = readDevType(v, offset); 
+				//console.log(`  Offset before readDevType: ${offset}`);
+				// offset = readDevType(); 
+				
+				// CRITICAL FIX: Array.prototype.slice syntax handles (start, end) absolute indices.
+				// If lenDevPkt is a relative length, use (offset, offset + lenDevPkt)
+				let devPktEnd = offset + lenDevPkt;
+				if (devPktEnd <= bytesLen) {
+					let devPkt = msgBytes.slice(offset, devPktEnd);
+					
+					// Extracting your specific ftMask configuration out of the internal binary payload
+					// The first 4 bytes of your packet payload contain devId (uint16) and ftMask (uint16)
+					let innerView = new DataView(devPkt);
+					let innerDevId = innerView.getUint16(0, true);
+					let ftMask = innerView.getUint16(2, true); // Evaluates cleanly to 284
+					
+					
+					//console.log(`  Device Packet Payload (Hex):`, Array.from(new Uint8Array(devPkt)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+					let parsedResults = parseDevicePayload(devPkt, ftMask);
+					// Bind the live data frame to your renderer pipeline
+					if (parsedResults && parsedResults.sensors) {
+						latestOarData = parsedResults; 
+					}
 				}
+
+				// --- SUB-DEVICE INNER SCHEMA LOOP ---
+				let subDevOffset = offset;
+				for (let j = 0; j < devNumSubDevs; ++j) {
+					//console.log(`    > Sub-Device #${j} parsing at Sub-Offset: ${subDevOffset}`);
+					// Define your Sub-Device payload structure extraction here
+					// Example: let subDevData = v.getUint8(subDevOffset); subDevOffset += 1;
+				}
+				
+				// Move main offset pointer forward past this device's complete packet payload
 				offset += lenDevPkt;
-				i += devNumSubDevs;
 			}
-			
 		}
+
+
 
 
 		function handleWebSockDataType(datType, dat, datLen){
@@ -228,7 +375,7 @@
 				handleBoatSelectedSvrResp( dat );
 			}
 			else if( datType.startsWith("BoatStatus") ){
-				handleBoatStatus( dat );
+				handleBoatStatus( dat, datLen );
 			}
 		}
 
@@ -451,6 +598,7 @@
 			devAddAsRoleElm = document.getElementById( 'devAddAsRole' );
 			devAddAtSeatElm = document.getElementById( 'devAddAtSeat' );
 			
+			devAddAsRoleElm.options.length = 0;
 			addListofKeysToSelectElmOptions( idxToBoatDevRoles, devAddAsRoleElm );
 		
 		

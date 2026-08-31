@@ -174,6 +174,14 @@ void loop(void) {
 
     PostAndFetchDataFromCloudServer(DEV_STATUS);
     lastCloudStatusSendMicros = now;
+
+    if( cloudSendActiveRemPkts > 0 )
+      cloudSendActiveRemPkts -= 1;
+    if( cloudSendActiveRemPkts <= 0 ){
+      cloudSendStatusIntervalMillis = inactiveCloudSendStatusIntervalMillis;
+    }
+
+    doCommandsInRecievedData(payloadLen, payload);
   }
 
   if(device_id == 0){

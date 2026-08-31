@@ -7,7 +7,7 @@ import DeviceWebsockHandler
 def handleClientWebsockRequests(websocket, pktAuth, datType, datLen, datStr):
 	client = Client.activeClientLogins[pktAuth]
 	client.wSock = websocket
-	networkCommon.dbgPrint('pktAuth valid datType %s' % datType)
+	#networkCommon.dbgPrint('pktAuth valid datType %s' % datType)
 	#the following requests are allowed
 	authDCmdRequested = False
 	if client.login == None:
@@ -25,7 +25,7 @@ def handleClientWebsockRequests(websocket, pktAuth, datType, datLen, datStr):
 			Client.logoutClient(client)
 
 	elif datType.startswith(b'Boat'):
-		networkCommon.dbgPrint("Handle client Boat request")
+		#networkCommon.dbgPrint("Handle client Boat request")
 		BoatWebsockHandler.handleWebSockClientDeviceRequests( client, datType, datStr )
 
 	#device = None
